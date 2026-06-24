@@ -7,19 +7,22 @@ two tables matching Leandra's Asana layout exactly:
   - 9 rows (Entry Wallet → RMB)
   - 3 columns (Lead Load ETB, Lead Load NTB, Open Market ETB)
 
-Decoder (Pierre WhatsApp, 24 Jun 2026):
-  EL*  → Entry Wallet
-  EU*  → Entry Banking
-  GL*  → Middle Market
-  PB*  → Emerging Affluent
-  PC*  → Affluent
-  PW0  → Wealth (per Pierre, aggregates PW0 + PWU + PWH)
-  PWU  → Ultra High Net Worth
-  PWH  → High Net Worth
+Sub-segment mapping: IBS (Income Base Segmentation) per Charmain Khanyile
+(Data Head) on 24 Jun 2026 — "Please use IBS specifically".
 
-Assumptions (per Pierre):
-  - All FNB cardholders → ETB column (no NTB / Open Market in our data)
-  - Signet & RMB rows cannot be separated from Wealth — shown as n/a
+  income_group           → sub_segment
+  R0-R5.5k               → Entry Wallet
+  R5.5k-R13.5k           → Entry Banking
+  R13.5k-R23.5k          → Middle Market
+  R23.5k-R32.5k          → Emerging Affluent
+  R32.5k-R56k            → Affluent
+  R56k+                  → Wealth
+  (UHNW, Signet, RMB)    → not derivable from income alone
+
+Assumptions:
+  - All FNB cardholders in our data → ETB column populated
+  - NTB (account ≤ 3m old) and Open Market columns left blank
+    (require customer-master data not currently in our environment)
 
 Usage:
   python3 scripts/build_audience_grids.py [sandbox|production]
@@ -55,14 +58,13 @@ WITH client_custs AS (
 ),
 decoded AS (
     SELECT
-        CASE
-            WHEN c.income_segment LIKE 'EL%' THEN 'Entry Wallet'
-            WHEN c.income_segment LIKE 'EU%' THEN 'Entry Banking'
-            WHEN c.income_segment LIKE 'GL%' THEN 'Middle Market'
-            WHEN c.income_segment LIKE 'PB%' THEN 'Emerging Affluent'
-            WHEN c.income_segment LIKE 'PC%' THEN 'Affluent'
-            WHEN c.income_segment IN ('PW0','PWH') THEN 'Wealth'
-            WHEN c.income_segment = 'PWU'        THEN 'UHNW'
+        CASE c.income_group
+            WHEN 'R0-R5.5k'      THEN 'Entry Wallet'
+            WHEN 'R5.5k-R13.5k'  THEN 'Entry Banking'
+            WHEN 'R13.5k-R23.5k' THEN 'Middle Market'
+            WHEN 'R23.5k-R32.5k' THEN 'Emerging Affluent'
+            WHEN 'R32.5k-R56k'   THEN 'Affluent'
+            WHEN 'R56k+'         THEN 'Wealth'
             ELSE 'Unknown'
         END AS sub_segment
     FROM client_custs s
@@ -164,11 +166,11 @@ tr:hover td {{ background:#fafafa; }}
 <div class="meta">Source: {PROJECT} · Generated {now}</div>
 
 <div class="callout">
-<strong>Caveats:</strong>
+<strong>Method &amp; caveats:</strong>
 <ul style="margin:6px 0 0 18px">
-<li>All counts shown in <strong>Lead Load (ETB)</strong>. Our transaction data covers established customers only, so <strong>NTB</strong> (account ≤ 3m old, per Yingisani 24 Jun) and <strong>Open Market</strong> columns are blank — those need to be sourced from the Segmentation Master Owners (Chamaine Khanyile per Yingisani).</li>
-<li><strong>Wealth</strong> row = PW0 + PWH combined. <strong>UHNW</strong> = PWU. Pierre noted the full Wealth base for cross-reference is PW0 + PWH + PWU.</li>
-<li><strong>Signet</strong> and <strong>RMB</strong>: blank — not confirmed with Pierre which raw codes (if any) map to these rows.</li>
+<li>Sub-segments derived using <strong>IBS (Income Base Segmentation)</strong> per Charmain Khanyile (Data Head), 24 Jun 2026. Mapping: R0-5.5k → Entry Wallet, R5.5k-13.5k → Entry Banking, R13.5k-23.5k → Middle Market, R23.5k-32.5k → Emerging Affluent, R32.5k-56k → Affluent, R56k+ → Wealth.</li>
+<li>All counts shown in <strong>Lead Load (ETB)</strong>. NTB columns (account ≤ 3m old, per Yingisani's NTP/RTP/ETP definitions) and Open Market columns require customer-master data not currently in our environment — pending Charmain.</li>
+<li><strong>UHNW</strong>, <strong>Signet</strong>, <strong>RMB</strong>: cannot be derived from income alone — Wealth (R56k+) row is the highest IBS tier available.</li>
 </ul>
 </div>
 
