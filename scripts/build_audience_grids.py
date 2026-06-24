@@ -112,13 +112,14 @@ def fmt(n) -> str:
 
 
 def grid_rows(data: dict[str, int]) -> str:
-    """Render 9 rows × 3 cols matching Leandra's layout exactly."""
+    """Render 9 rows × 4 value cols matching Leandra's layout exactly."""
     out = ''
     for seg in SUB_SEGMENTS:
         etb_cell = fmt(data.get(seg, 0))
         out += (
             f'<tr><td class="seg">{_h.escape(seg)}</td>'
             f'<td class="vol">{etb_cell}</td>'
+            f'<td class="vol"></td>'
             f'<td class="vol"></td>'
             f'<td class="vol"></td></tr>'
         )
@@ -163,12 +164,11 @@ tr:hover td {{ background:#fafafa; }}
 <div class="meta">Source: {PROJECT} · Generated {now}</div>
 
 <div class="callout">
-<strong>Caveats (per Pierre, 24 Jun):</strong>
+<strong>Caveats:</strong>
 <ul style="margin:6px 0 0 18px">
-<li>All volumes sit under <strong>Lead Load (ETB)</strong> — every customer in our data is FNB-banked by definition, so <strong>Lead Load (NTB)</strong> and <strong>Open Market (ETB)</strong> columns are empty.</li>
-<li><strong>Wealth</strong> row = PW0 + PWH (Pierre noted the combined wealth base for cross-reference is PW0 + PWH + PWU; PWU is broken out separately in the UHNW row to avoid double-counting).</li>
-<li><strong>UHNW</strong> = PWU (Pierre's decode).</li>
-<li><strong>Signet</strong> and <strong>RMB</strong>: blank — not confirmed with Pierre yet which raw codes (if any) map to these rows.</li>
+<li>All counts shown in <strong>Lead Load (ETB)</strong>. Our transaction data covers established customers only, so <strong>NTB</strong> (account ≤ 3m old, per Yingisani 24 Jun) and <strong>Open Market</strong> columns are blank — those need to be sourced from the Segmentation Master Owners (Chamaine Khanyile per Yingisani).</li>
+<li><strong>Wealth</strong> row = PW0 + PWH combined. <strong>UHNW</strong> = PWU. Pierre noted the full Wealth base for cross-reference is PW0 + PWH + PWU.</li>
+<li><strong>Signet</strong> and <strong>RMB</strong>: blank — not confirmed with Pierre which raw codes (if any) map to these rows.</li>
 </ul>
 </div>
 
@@ -179,10 +179,11 @@ tr:hover td {{ background:#fafafa; }}
 <th class="vol-h">Lead Load Volumes (ETB)</th>
 <th class="vol-h">Lead Load Volumes (NTB)</th>
 <th class="vol-h">Open Market Volumes (ETB)</th>
+<th class="vol-h">Open Market Volumes (NTB)</th>
 </tr></thead>
 <tbody>
 {adidas_html}
-<tr class="totals"><td>Total</td><td class="vol">{fmt(sum(v for k,v in adidas.items() if k != 'Unknown'))}</td><td class="vol"></td><td class="vol"></td></tr>
+<tr class="totals"><td>Total</td><td class="vol">{fmt(sum(v for k,v in adidas.items() if k != 'Unknown'))}</td><td class="vol"></td><td class="vol"></td><td class="vol"></td></tr>
 </tbody>
 </table>
 <div class="footnote">Based on customers with at least one transaction at an Adidas-branded merchant in the last 12 months.</div>
@@ -194,10 +195,11 @@ tr:hover td {{ background:#fafafa; }}
 <th class="vol-h">Lead Load Volumes (ETB)</th>
 <th class="vol-h">Lead Load Volumes (NTB)</th>
 <th class="vol-h">Open Market Volumes (ETB)</th>
+<th class="vol-h">Open Market Volumes (NTB)</th>
 </tr></thead>
 <tbody>
 {superbalist_html}
-<tr class="totals"><td>Total</td><td class="vol">{fmt(sum(v for k,v in superbalist.items() if k != 'Unknown'))}</td><td class="vol"></td><td class="vol"></td></tr>
+<tr class="totals"><td>Total</td><td class="vol">{fmt(sum(v for k,v in superbalist.items() if k != 'Unknown'))}</td><td class="vol"></td><td class="vol"></td><td class="vol"></td></tr>
 </tbody>
 </table>
 <div class="footnote">Based on customers with at least one transaction at Superbalist in the last 12 months.</div>
