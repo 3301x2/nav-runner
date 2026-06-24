@@ -61,7 +61,8 @@ decoded AS (
             WHEN c.income_segment LIKE 'GL%' THEN 'Middle Market'
             WHEN c.income_segment LIKE 'PB%' THEN 'Emerging Affluent'
             WHEN c.income_segment LIKE 'PC%' THEN 'Affluent'
-            WHEN c.income_segment IN ('PW0','PWU','PWH') THEN 'Wealth'
+            WHEN c.income_segment IN ('PW0','PWH') THEN 'Wealth'
+            WHEN c.income_segment = 'PWU'        THEN 'UHNW'
             ELSE 'Unknown'
         END AS sub_segment
     FROM client_custs s
@@ -114,12 +115,7 @@ def grid_rows(data: dict[str, int]) -> str:
     """Render 9 rows × 3 cols matching Leandra's layout exactly."""
     out = ''
     for seg in SUB_SEGMENTS:
-        if seg in ('UHNW', 'Signet', 'RMB'):
-            # Per Pierre: Signet & RMB included in Wealth, can't be split.
-            # UHNW we DO have (PWU) but Pierre said treat Wealth as one combined number.
-            etb_cell = '<span class="na">included in Wealth</span>'
-        else:
-            etb_cell = fmt(data.get(seg, 0))
+        etb_cell = fmt(data.get(seg, 0))
         out += (
             f'<tr><td class="seg">{_h.escape(seg)}</td>'
             f'<td class="vol">{etb_cell}</td>'
@@ -170,8 +166,9 @@ tr:hover td {{ background:#fafafa; }}
 <strong>Caveats (per Pierre, 24 Jun):</strong>
 <ul style="margin:6px 0 0 18px">
 <li>All volumes sit under <strong>Lead Load (ETB)</strong> — every customer in our data is FNB-banked by definition, so <strong>Lead Load (NTB)</strong> and <strong>Open Market (ETB)</strong> columns are empty.</li>
-<li><strong>Wealth</strong> row combines PW0 + PWU + PWH per Pierre's instruction (treated as one combined wealth base).</li>
-<li><strong>UHNW</strong>, <strong>Signet</strong>, <strong>RMB</strong>: cannot be separated from Wealth in the current dataset — shown as <em>included in Wealth above</em>.</li>
+<li><strong>Wealth</strong> row = PW0 + PWH (Pierre noted the combined wealth base for cross-reference is PW0 + PWH + PWU; PWU is broken out separately in the UHNW row to avoid double-counting).</li>
+<li><strong>UHNW</strong> = PWU (Pierre's decode).</li>
+<li><strong>Signet</strong> and <strong>RMB</strong>: blank — not confirmed with Pierre yet which raw codes (if any) map to these rows.</li>
 </ul>
 </div>
 
