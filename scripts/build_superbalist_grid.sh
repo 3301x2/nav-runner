@@ -10,7 +10,7 @@
 #   EU*  → Entry Banking
 #   GL*  → Middle Market
 #   PB*  → Emerging Affluent
-#   PL*  → Affluent (assuming PL = padded form of PC)
+#   PC*  → Affluent
 #   PW0  → Wealth (note: aggregates with PWU + PWH per Pierre)
 #   PWU  → Ultra High Net Worth
 #   PWH  → High Net Worth
@@ -48,7 +48,6 @@ echo "  • All FNB cardholders → ETB (Existing-to-Bank)"
 echo "  • NTB and Open Market columns = 0 (no source in our data)"
 echo "  • Wealth row aggregates PW0 + PWU + PWH (combined wealth base)"
 echo "  • Signet / RMB cannot be separated from Wealth — flagged below"
-echo "  • PL* assumed = Affluent (padded form of PC code)"
 
 echo
 echo "── 1. Confirm Superbalist customer base ──"
@@ -77,7 +76,7 @@ bq_q "
                 WHEN c.income_segment LIKE 'EU%' THEN '2. Entry Banking'
                 WHEN c.income_segment LIKE 'GL%' THEN '3. Middle Market'
                 WHEN c.income_segment LIKE 'PB%' THEN '4. Emerging Affluent'
-                WHEN c.income_segment LIKE 'PL%' THEN '5. Affluent'
+                WHEN c.income_segment LIKE 'PC%' THEN '5. Affluent'
                 WHEN c.income_segment IN ('PW0', 'PWU', 'PWH') THEN '6. Wealth (PW0+PWU+PWH)'
                 ELSE '9. Unknown / Other'
             END AS sub_segment
@@ -141,5 +140,4 @@ echo "  Caveats to include in the cover note:"
 echo "    1. All volumes in ETB column — no NTB / Open Market available"
 echo "    2. Wealth row combines PW0 + PWU + PWH (Pierre's instruction)"
 echo "    3. Signet & RMB rows: cannot be separated from Wealth"
-echo "    4. PL* assumed to map to Affluent (Pierre to confirm if wrong)"
 echo "════════════════════════════════════════════════════════════"
