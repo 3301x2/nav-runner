@@ -30,8 +30,10 @@ case "$ENV" in
 esac
 
 SOURCE_URI="gs://testing-sandbox-123/ASPIRE_PRIMELIFE_20260706_FB.csv"
-SANDBOX_TABLE="fmn-sandbox.staging.aspire_primelife_meta_audience"
-TABLE="${PROJECT}.staging.aspire_primelife_meta_audience"
+# Use `project:dataset.table` form for bq CLI — `project.dataset.table` fails
+# in some regions with a misleading "Not found" error.
+SANDBOX_TABLE="fmn-sandbox:staging.aspire_primelife_meta_audience"
+TABLE="${PROJECT}:staging.aspire_primelife_meta_audience"
 
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
     gcloud auth login --update-adc --quiet || exit 1
