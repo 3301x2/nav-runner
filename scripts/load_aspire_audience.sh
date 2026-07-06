@@ -53,16 +53,34 @@ else
 fi
 echo "════════════════════════════════════════════════════════════"
 
-# Ensure staging dataset exists in this project
+# Verify staging dataset exists (don't create — that's a permission ask)
 echo
-echo "── Ensure staging dataset exists ──"
-bq --project_id="$PROJECT" mk --location=africa-south1 --dataset --description="Staging tables" staging 2>&1 | \
-    grep -v "already exists" || true
+echo "── Verify staging dataset exists ──"
+if bq --project_id="$PROJECT" show --dataset "${PROJECT}:staging" >/dev/null 2>&1; then
+    echo "   ✓ ${PROJECT}.staging exists"
+else
+    echo "   ✗ ${PROJECT}.staging does NOT exist"
+    echo "   Run this first (needs bigquery.datasets.create):"
+    echo "     bq --project_id=$PROJECT mk --location=africa-south1 --dataset ${PROJECT}:staging"
+    exit 1
+fi
 
 if [ "$ENV_KIND" = "sandbox" ]; then
     echo
-    echo "── Loading CSV into $TABLE ──"
-    echo "(all columns typed as STRING for safety with hashed data)"
+    echo "── Peek at the CSV header first (so we can see the real column count) ──"
+    HEADER=$(gcloud storage cat "$SOURCE_URI" 2>/dev/null | head -1 || true)
+    if [ -n "$HEADER" ]; then
+        HEADER_COL_COUNT=$(echo "$HEADER" | awk -F',' '{print NF}')
+        echo "   Header ($HEADER_COL_COUNT columns): $HEADER"
+    else
+        echo "   (couldn't read header — proceeding anyway)"
+        HEADER_COL_COUNT=0
+    fi
+
+    echo
+    echo "── Loading CSV into $TABLE (--autodetect schema) ──"
+    echo "Using autodetect so column count/name mismatches don't kill the load."
+    echo "All columns will be typed as detected; we can retype after inspection."
     bq load \
         --project_id="$PROJECT" \
         --location=africa-south1 \
@@ -70,17 +88,20 @@ if [ "$ENV_KIND" = "sandbox" ]; then
         --replace \
         --skip_leading_rows=1 \
         --allow_quoted_newlines \
-        --max_bad_records=0 \
-        --schema="email:STRING,email2:STRING,email3:STRING,phone:STRING,phone2:STRING,phone3:STRING,madid:STRING,fn:STRING,ln:STRING,zip:STRING,ct:STRING,st:STRING,country:STRING,dob:STRING,doby:STRING,gen:STRING,age:STRING,uid:STRING" \
+        --max_bad_records=100 \
+        --autodetect \
         "$TABLE" \
         "$SOURCE_URI"
 
-    if [ $? -ne 0 ]; then
+    LOAD_STATUS=$?
+    if [ $LOAD_STATUS -ne 0 ]; then
         echo
-        echo "Load failed. Common causes:"
-        echo "  • Column count in CSV doesn't match the 18 columns in schema"
-        echo "  • Header row missing / different casing (we skip 1 header row)"
-        echo "  • You don't have BQ dataEditor + storage.objectViewer on $SOURCE_URI"
+        echo "Load failed. Diagnostic hints:"
+        echo "  • Check that $TABLE dataset ($PROJECT.staging) exists — should"
+        echo "    (we verified earlier)"
+        echo "  • Verify bucket read: gcloud storage cat $SOURCE_URI | head -3"
+        echo "  • If the CSV has non-UTF8 chars, add --encoding=ISO-8859-1"
+        echo "  • If it's tab-separated, add --field_delimiter='\\t'"
         exit 1
     fi
 else
