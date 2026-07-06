@@ -4,10 +4,10 @@
 #
 # Runs three specific tests:
 #   1. Can I read the sandbox table? (should be yes)
-#   2. Can I list datasets in fmn-production-462814?
-#   3. Can I create a dataset in fmn-production-462814? (dry-run using --dry_run
+#   2. Can I list datasets in fmn-production-462014?
+#   3. Can I create a dataset in fmn-production-462014? (dry-run using --dry_run
 #      style — attempt to create a temp one, then delete)
-#   4. What roles do I actually have on fmn-production-462814?
+#   4. What roles do I actually have on fmn-production-462014?
 #
 # Usage:
 #   bash scripts/check_prod_access.sh
@@ -16,7 +16,7 @@
 set -uo pipefail
 
 SANDBOX="fmn-sandbox"
-PROD="fmn-production-462814"
+PROD="fmn-production-462014"
 SANDBOX_TABLE="fmn-sandbox:staging.aspire_primelife_meta_audience"
 
 GREEN=$'\033[0;32m'
@@ -59,7 +59,7 @@ fi
 
 
 echo
-echo "── 3. Does fmn-production-462814.staging exist? ──"
+echo "── 3. Does fmn-production-462014.staging exist? ──"
 if bq --project_id="$PROD" show --dataset "${PROD}:staging" >/dev/null 2>&1; then
     ok "${PROD}:staging exists"
     DATASET_OK=true

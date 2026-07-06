@@ -5,7 +5,7 @@
 #
 # Actions attempted:
 #   1. Create fmn-sandbox.staging dataset (if missing)
-#   2. Try to create fmn-production-462814.staging dataset (probably fails —
+#   2. Try to create fmn-production-462014.staging dataset (probably fails —
 #      that's fine, we'll tell Rory)
 #   3. List what's actually in gs://testing-sandbox-123 (so we can see
 #      if the file name is different from what we expected)
@@ -23,7 +23,7 @@
 set -uo pipefail
 
 SANDBOX="fmn-sandbox"
-PROD="fmn-production-462814"
+PROD="fmn-production-462014"
 CSV_BUCKET="testing-sandbox-123"
 CSV_OBJECT="ASPIRE_PRIMELIFE_20260706_FB.csv"
 TABLE="${SANDBOX}.staging.aspire_primelife_meta_audience"
@@ -80,7 +80,7 @@ fi
 
 # ── 3. Try to create prod staging dataset ────────────────────────────
 echo
-echo "── 3. Try to create fmn-production-462814.staging dataset ──"
+echo "── 3. Try to create fmn-production-462014.staging dataset ──"
 if bq --project_id="$PROD" show --dataset "${PROD}:staging" >/dev/null 2>&1; then
     ok "$PROD.staging already exists"
 else

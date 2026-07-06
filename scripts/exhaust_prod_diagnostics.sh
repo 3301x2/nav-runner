@@ -1,11 +1,11 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
 # Before pinging Rory again, exhaust every plausible reason we can't
-# do stuff on fmn-production-462814. Prints a clean verdict at the end.
+# do stuff on fmn-production-462014. Prints a clean verdict at the end.
 #
 # Checks:
 #   1. All gcloud accounts + which one is active
-#   2. Full IAM binding dump for the account on fmn-production-462814
+#   2. Full IAM binding dump for the account on fmn-production-462014
 #     (including conditional bindings and ancestor-level roles)
 #   3. Real API access test — list datasets, list buckets, get a job
 #   4. Quota project mismatch check
@@ -17,7 +17,7 @@
 
 set -uo pipefail
 
-PROD="fmn-production-462814"
+PROD="fmn-production-462014"
 SANDBOX="fmn-sandbox"
 
 GREEN=$'\033[0;32m'

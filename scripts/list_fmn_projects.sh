@@ -1,7 +1,7 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
 # Show every GCP project the account can see that mentions "fmn".
-# If there are TWO prod projects (e.g. fmn-production AND fmn-production-462814),
+# If there are TWO prod projects (e.g. fmn-production AND fmn-production-462014),
 # Rory may have granted access on one while my scripts target the other.
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ gcloud projects list \
 
 echo
 echo "── Test access on candidate prod project IDs ──"
-for candidate in "fmn-production" "fmn-production-462814" "fmn-prod" "FMN-Production"; do
+for candidate in "fmn-production" "fmn-production-462014" "fmn-prod" "FMN-Production"; do
     echo
     echo "   Testing project ID: $candidate"
     if bq --project_id="$candidate" ls 2>/tmp/probe.log; then

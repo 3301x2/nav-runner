@@ -18,7 +18,7 @@
 set -uo pipefail
 
 SANDBOX="fmn-sandbox"
-PROD="fmn-production-462814"
+PROD="fmn-production-462014"
 
 GREEN=$'\033[0;32m'
 RED=$'\033[0;31m'
@@ -91,7 +91,7 @@ gcloud projects get-iam-policy "$PROD" \
 
 # ── 5. Confirm the prod dataset situation ────────────────────────────
 echo
-echo "── 5. Can I see fmn-production-462814.staging? ──"
+echo "── 5. Can I see fmn-production-462014.staging? ──"
 if bq --project_id="$PROD" show --dataset "${PROD}:staging" >/dev/null 2>&1; then
     ok "${PROD}.staging exists"
 else

@@ -19,7 +19,7 @@ set -uo pipefail
 ENV="${1:-sandbox}"
 case "$ENV" in
     sandbox|dev|sb)         PROJECT="fmn-sandbox" ;;
-    production|prod|prd)    PROJECT="fmn-production-462814" ;;
+    production|prod|prd)    PROJECT="fmn-production-462014" ;;
     *) echo "Usage: bash $0 [sandbox|production]"; exit 1 ;;
 esac
 

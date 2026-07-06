@@ -1,6 +1,6 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
-# The Google Cloud console can see fmn-production-462814 clearly (with
+# The Google Cloud console can see fmn-production-462014 clearly (with
 # datasets: Adidas, ETL_DEV, Metropolitan, PicknPay, demographics_*, etc.)
 # but the gcloud CLI says "Project not found or deleted."
 #
@@ -10,7 +10,7 @@
 #
 # This script:
 #   1. Shows which account is active
-#   2. Explicitly sets the ADC quota project to fmn-production-462814
+#   2. Explicitly sets the ADC quota project to fmn-production-462014
 #   3. Runs a bare `bq ls` to confirm the CLI can now see prod datasets
 #   4. Runs the prod load
 #
@@ -20,7 +20,7 @@
 
 set -uo pipefail
 
-PROD="fmn-production-462814"
+PROD="fmn-production-462014"
 
 GREEN=$'\033[0;32m'
 RED=$'\033[0;31m'
