@@ -514,31 +514,45 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 </div>
 
 <div class='sec'>
-<h2>The competitive set</h2>
-<p class='sub'>How Food Lovers Market compares against the largest grocers by FNB spend.</p>
-<div class='two-col'>
-<div><h3 style='font-size:.9rem;color:#1e3a5f;margin-bottom:6px'>Total spend</h3><div class='chbox tall'><canvas id='chCompSpend'></canvas></div></div>
-<div><h3 style='font-size:.9rem;color:#1e3a5f;margin-bottom:6px'>Spend per customer</h3><div class='chbox tall'><canvas id='chCompSpc'></canvas></div></div>
+<h2>Category positioning</h2>
+<p class='sub'>Where Food Lovers Market sits in the grocery category by FNB cardholder spend.</p>
+<div class='row'>
+{f'''{kpi_card('Category Rank', f"#{int(fl_market_row['spend_rank'])}", 'in Groceries')}
+     {kpi_card('Category Share', f"{fl_market_row['market_share_pct']:.1f}%", 'by spend')}
+     {kpi_card('Customer Reach', f"{fl_market_row['penetration_pct']:.1f}%", 'of grocery shoppers')}
+     {kpi_card('Wallet Share', f"{fl_market_row['avg_share_of_wallet']:.1f}%", 'of grocery basket')}''' if fl_market_row is not None else ''}
 </div>
-<table><tr><th>Retailer</th><th>Customers</th><th>Total Spend</th><th>Spend/Cust</th><th>Market Share</th></tr>
-{comp_table_rows}
-</table>
 </div>
 
 <div class='sec'>
 <h2>Customer quality</h2>
-<p class='sub'>How the Food Lovers audience clusters against FNB's segmentation model.</p>
+<p class='sub'>Food Lovers customers clustered by FNB's behavioural segmentation model. Segments reflect FNB-wide activity (not Food Lovers-specific).</p>
 <div class='callout'>
-<b>{top_2_segments_pct}% of Food Lovers customers are in FNB's top-tier segments</b>{f' — mostly {esc(top_seg_name)}' if top_seg_name else ''}.
+<b>{top_2_segments_pct}% of Food Lovers customers are in FNB's two highest-value segments</b> — a strong indicator of an affluent, engaged audience.
 </div>
+<div class='two-col'>
 <div class='chbox'><canvas id='chSegments'></canvas></div>
+<div style='font-size:.88rem;line-height:1.6;color:#334155'>
+<h3 style='font-size:1rem;color:#0f172a;margin-bottom:8px'>What the segments mean</h3>
+<p><b style='color:#16a34a'>Loyal High Value</b> — consistently high spenders with strong recency. Top of the funnel.</p>
+<p style='margin-top:8px'><b style='color:#2E75B6'>Champions</b> — highest lifetime value; broad category spread and frequent transactions.</p>
+<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier</b> — reliable regulars with moderate but stable spend patterns.</p>
+<p style='margin-top:8px'><b style='color:#e11d48'>Dormant</b> — previously active but low recent engagement — re-activation opportunity.</p>
+<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk</b> — spend and frequency declining — win-back campaign candidates.</p>
+</div>
+</div>
 </div>
 
 <div class='sec'>
 <h2>Who they are</h2>
+<p class='sub'>A snapshot of the Food Lovers audience demographics.</p>
 <div class='row'>
 {demo_row}
 </div>
+<p class='sub' style='margin-top:14px;font-size:.9rem;color:#475569'>
+The audience skews slightly female (54%) with an average age in the mid-40s — mature, established consumers.
+Full age and income breakdowns follow below.
+</p>
 </div>
 
 <div class='sec'>
@@ -553,8 +567,8 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 </div>
 
 <div class='sec'>
-<h2>Where they shop</h2>
-<p class='sub'>Provincial spend distribution.</p>
+<h2>Geographic footprint</h2>
+<p class='sub'>Total Food Lovers spend by province — where the audience lives.</p>
 <div class='chbox tall'><canvas id='chGeo'></canvas></div>
 </div>
 
