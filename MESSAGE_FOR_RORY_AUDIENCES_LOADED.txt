@@ -2,9 +2,8 @@ Hi Rory,
 
 Two audience files are now loaded and promoted end-to-end. Both sandbox and prod tables are live and Meta-ready.
 
-╔══════════════════════════════════════════════════════════════╗
-║  1. ASPIRE PRIMELIFE                                         ║
-╚══════════════════════════════════════════════════════════════╝
+
+1. ASPIRE PRIMELIFE
 
 Source CSV: gs://testing-sandbox-123/ASPIRE_PRIMELIFE_20260706_FB.csv
 
@@ -12,21 +11,19 @@ Sandbox: fmn-sandbox.staging.aspire_primelife_meta_audience
 Prod:    fmn-production-462014.staging.aspire_primelife_meta_audience
 
 Row counts:
-  • Sandbox:  1,576,827
-  • Prod:     1,576,827
-  • Expected: 1,500,000+ (over threshold, target met)
+  Sandbox:  1,576,827
+  Prod:     1,576,827
+  Expected: 1,500,000+ (over threshold, target met)
 
 Sense-checks: all passed
-  • Every row has valid identifier (email + phone + madid + uid)
-  • Emails: 100% valid 64-char SHA-256 hex hashes
-  • Phones: 100% valid SHA-256 hex hashes
-  • Zero duplicate UIDs
-  • Zero rows Meta would reject
+  Every row has valid identifier (email + phone + madid + uid)
+  Emails: 100% valid 64-char SHA-256 hex hashes
+  Phones: 100% valid SHA-256 hex hashes
+  Zero duplicate UIDs
+  Zero rows Meta would reject
 
 
-╔══════════════════════════════════════════════════════════════╗
-║  2. VOX CONSENT INCLUSION A                                  ║
-╚══════════════════════════════════════════════════════════════╝
+2. VOX CONSENT INCLUSION A
 
 Source CSV: gs://incoming_vox/VOX_CONSENT_InclusionA_20260706_FB.csv
 
@@ -34,30 +31,30 @@ Sandbox: fmn-sandbox.staging.vox_consent_inclusiona_meta_audience
 Prod:    fmn-production-462014.staging.vox_consent_inclusiona_meta_audience
 
 Row counts:
-  • Sandbox:  132,050
-  • Prod:     132,050
-  • Expected: ~130,000 (delta 1.58%, within +/- 5% tolerance)
+  Sandbox:  132,050
+  Prod:     132,050
+  Expected: about 130,000 (delta 1.58%, within 5% tolerance)
 
 Sense-checks: all passed
-  • Every row has valid identifier
-  • Emails: valid SHA-256 hex hashes
-  • Phones: valid SHA-256 hex hashes
-  • Zero duplicate UIDs
-  • Zero rows Meta would reject
+  Every row has valid identifier
+  Emails: valid SHA-256 hex hashes
+  Phones: valid SHA-256 hex hashes
+  Zero duplicate UIDs
+  Zero rows Meta would reject
 
 
-── Summary ──
+Summary
 
-  Aspire:  1,576,827 rows — sandbox + prod match
-  Vox:       132,050 rows — sandbox + prod match
+  Aspire:  1,576,827 rows, sandbox and prod match
+  Vox:       132,050 rows, sandbox and prod match
 
 Both tables ready for LiveRamp / Meta activation.
 
 
-── Reminder for next time ──
+Reminder for next time
 
-Any future FB audience CSV drops into a bucket and I can load + promote to prod in one command. Sandbox load, all sense-checks, prod copy, and validation happen in ~2 minutes end to end.
+Any future FB audience CSV drops into a bucket and I can load and promote to prod in one command. Sandbox load, all sense-checks, prod copy and validation happen in about 2 minutes end to end.
 
-Thanks for sorting the prod access — made everything downstream go smoothly.
+Thanks for sorting the prod access, made everything downstream go smoothly.
 
 Prosper
