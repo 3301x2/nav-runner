@@ -48,7 +48,7 @@ echo "── 2. Rows per month (see if the window is dense or has gaps) ──"
 bq_q "
     SELECT
         FORMAT_DATE('%Y-%m', EFF_DATE) AS month,
-        COUNT(*)                       AS rows,
+        COUNT(*)                       AS row_count,
         COUNT(DISTINCT UNIQUE_ID)      AS customers,
         ROUND(SUM(trns_amt), 0)        AS spend
     FROM \`$PROJECT.staging.stg_transactions\`
@@ -74,7 +74,7 @@ echo "── 4. Food Lovers rows per month ──"
 bq_q "
     SELECT
         FORMAT_DATE('%Y-%m', EFF_DATE) AS month,
-        COUNT(*)                       AS rows,
+        COUNT(*)                       AS row_count,
         COUNT(DISTINCT UNIQUE_ID)      AS customers,
         ROUND(SUM(trns_amt), 0)        AS spend
     FROM \`$PROJECT.staging.stg_transactions\`
@@ -89,7 +89,7 @@ echo "(catches any spelling variants we should include or exclude)"
 bq_q "
     SELECT
         DESTINATION,
-        COUNT(*)                       AS rows,
+        COUNT(*)                       AS row_count,
         COUNT(DISTINCT UNIQUE_ID)      AS customers,
         ROUND(SUM(trns_amt), 0)        AS spend
     FROM \`$PROJECT.staging.stg_transactions\`
@@ -104,7 +104,7 @@ echo "(so we know exactly what to use as the category filter)"
 bq_q "
     SELECT
         CATEGORY_TWO,
-        COUNT(*)                       AS rows,
+        COUNT(*)                       AS row_count,
         COUNT(DISTINCT UNIQUE_ID)      AS customers,
         ROUND(SUM(trns_amt), 0)        AS spend
     FROM \`$PROJECT.staging.stg_transactions\`
