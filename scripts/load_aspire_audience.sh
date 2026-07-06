@@ -58,16 +58,32 @@ else
 fi
 echo "════════════════════════════════════════════════════════════"
 
-# Verify staging dataset exists (don't create — that's a permission ask)
+# Ensure staging dataset exists — auto-create if missing (needs bigquery.user
+# which is included in bigquery.dataEditor + up).
 echo
-echo "── Verify staging dataset exists ──"
+echo "── Ensure staging dataset exists ──"
 if bq --project_id="$PROJECT" show --dataset "${PROJECT}:staging" >/dev/null 2>&1; then
     echo "   ✓ ${PROJECT}.staging exists"
 else
-    echo "   ✗ ${PROJECT}.staging does NOT exist"
-    echo "   Run this first (needs bigquery.datasets.create):"
-    echo "     bq --project_id=$PROJECT mk --location=africa-south1 --dataset ${PROJECT}:staging"
-    exit 1
+    echo "   • ${PROJECT}.staging not found — attempting to create it"
+    if bq --project_id="$PROJECT" mk \
+        --location=africa-south1 \
+        --dataset \
+        --description="Staging tables — audience loads etc" \
+        "${PROJECT}:staging" 2>/tmp/mk_error.log; then
+        echo "   ✓ Created ${PROJECT}.staging"
+    else
+        echo "   ✗ Could not create ${PROJECT}.staging"
+        echo
+        cat /tmp/mk_error.log 2>/dev/null | head -3
+        echo
+        echo "Ask Rory to run in Cloud Shell:"
+        echo "    gcloud projects add-iam-policy-binding $PROJECT \\"
+        echo "        --member=\"user:$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -1)\" \\"
+        echo "        --role=\"roles/bigquery.user\" \\"
+        echo "        --condition=None"
+        exit 1
+    fi
 fi
 
 if [ "$ENV_KIND" = "sandbox" ]; then
@@ -116,23 +132,68 @@ if [ "$ENV_KIND" = "sandbox" ]; then
 else
     # Production: copy the already-sense-checked sandbox table into prod BQ.
     # `bq cp` works cross-project as long as your identity has:
-    #   - bigquery.dataViewer on fmn-sandbox
-    #   - bigquery.dataEditor on fmn-production
+    #   - bigquery.dataViewer (or higher) on fmn-sandbox
+    #   - bigquery.dataEditor (or higher) on fmn-production
+
+    # Confirm the sandbox source exists before we try to copy it
+    echo
+    echo "── Verify sandbox source table exists ──"
+    if bq --project_id=fmn-sandbox show "$SANDBOX_TABLE_CLI" >/dev/null 2>&1; then
+        SANDBOX_ROWS=$(bq query --quiet --use_legacy_sql=false \
+            --project_id=fmn-sandbox --format=csv \
+            "SELECT COUNT(*) FROM \`$SANDBOX_TABLE_SQL\`" 2>/dev/null | tail -1)
+        echo "   ✓ $SANDBOX_TABLE_SQL exists ($SANDBOX_ROWS rows)"
+    else
+        echo "   ✗ $SANDBOX_TABLE_SQL doesn't exist. Run sandbox mode first:"
+        echo "       bash $0 sandbox"
+        exit 1
+    fi
+
+    # Retry the copy — IAM grants take 1-3 minutes to propagate globally, and
+    # `bq cp` sometimes fails on the first try even when the roles are in place.
     echo
     echo "── Copying sandbox table into prod ──"
-    bq cp \
-        --force \
-        --location=africa-south1 \
-        "$SANDBOX_TABLE_CLI" \
-        "$TABLE_CLI"
+    MAX_ATTEMPTS=4
+    SLEEP_BETWEEN=15
+    for attempt in $(seq 1 $MAX_ATTEMPTS); do
+        echo "   Attempt $attempt of $MAX_ATTEMPTS..."
+        if bq cp \
+            --force \
+            --location=africa-south1 \
+            "$SANDBOX_TABLE_CLI" \
+            "$TABLE_CLI" 2>/tmp/cp_error.log; then
+            echo "   ✓ Copy succeeded on attempt $attempt"
+            break
+        fi
+        if [ $attempt -eq $MAX_ATTEMPTS ]; then
+            echo
+            echo "   ✗ Copy failed after $MAX_ATTEMPTS attempts. Last error:"
+            echo
+            cat /tmp/cp_error.log 2>/dev/null | head -8
+            echo
+            echo "Common causes:"
+            echo "  • IAM propagation still in flight — wait 2-3 min and rerun"
+            echo "  • Missing roles/bigquery.dataViewer on fmn-sandbox"
+            echo "  • Missing roles/bigquery.dataEditor on fmn-production"
+            echo "  • Region mismatch (both datasets must be in africa-south1)"
+            exit 1
+        fi
+        echo "   Waiting ${SLEEP_BETWEEN}s before retry (IAM propagation)..."
+        sleep $SLEEP_BETWEEN
+    done
 
-    if [ $? -ne 0 ]; then
-        echo
-        echo "Copy failed. Common causes:"
-        echo "  • Sandbox table doesn't exist yet — run sandbox mode first:"
-        echo "      bash $0 sandbox"
-        echo "  • Missing bigquery.dataViewer on fmn-sandbox or bigquery.dataEditor on fmn-production"
-        echo "  • Region mismatch (both datasets must be in africa-south1)"
+    # Post-copy sanity check — did the row counts match?
+    echo
+    echo "── Verifying prod table matches sandbox ──"
+    PROD_ROWS=$(bq query --quiet --use_legacy_sql=false \
+        --project_id="$PROJECT" --format=csv \
+        "SELECT COUNT(*) FROM \`$TABLE_SQL\`" 2>/dev/null | tail -1)
+    echo "   Sandbox: $SANDBOX_ROWS rows"
+    echo "   Prod:    $PROD_ROWS rows"
+    if [ "$SANDBOX_ROWS" = "$PROD_ROWS" ]; then
+        echo "   ✓ Row counts match"
+    else
+        echo "   ✗ Row counts differ — investigate before using prod table"
         exit 1
     fi
 fi
