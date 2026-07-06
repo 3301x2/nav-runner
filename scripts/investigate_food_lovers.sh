@@ -119,6 +119,10 @@ bq_q "
 
 echo
 echo "── 3b. Both DESTINATIONs COMBINED (union of customer base) ──"
+echo "IMPORTANT: NO CATEGORY_TWO filter — Eatery may live in a different"
+echo "category (Fast Food/Restaurants) than Market (Groceries). Filtering"
+echo "on Groceries alone would silently drop the Eatery from the combined"
+echo "total."
 bq_q "
     SELECT
         'Food Lovers (Market + Eatery combined)' AS scope,
@@ -130,8 +134,7 @@ bq_q "
         ROUND(SUM(dest_spend) / NULLIF(SUM(dest_txn_count), 0), 2)
                                                  AS avg_txn_value
     FROM \`$PROJECT.analytics.int_customer_category_spend\`
-    WHERE CATEGORY_TWO = 'Groceries'
-      AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+    WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
 "
 
 echo
@@ -171,8 +174,7 @@ bq_q "
             ROUND(SUM(dest_spend), 0) AS spend,
             SUM(dest_txn_count)       AS transactions
         FROM \`$PROJECT.analytics.int_customer_category_spend\`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     ),
     grp AS (
         SELECT
@@ -195,8 +197,7 @@ bq_q "
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM \`$PROJECT.analytics.int_customer_category_spend\`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         COUNT(*)                                                            AS customers,
@@ -221,8 +222,7 @@ bq_q "
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM \`$PROJECT.analytics.int_customer_category_spend\`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         co.segment_name,

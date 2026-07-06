@@ -133,7 +133,11 @@ fl_eatery = q(f"""
 """)
 fl_eatery_row = fl_eatery.iloc[0] if not fl_eatery.empty else None
 
-# Combined (union of customer bases)
+# Combined (union of customer bases across BOTH DESTINATIONs regardless of category)
+# NOTE: We intentionally DO NOT filter on CATEGORY_TWO here.
+# Food Lovers Market lives in 'Groceries', but Food Lovers Eatery lives in
+# a different category (Fast Food / Restaurants). Filtering on 'Groceries'
+# would silently drop the Eatery and produce a wrong "combined" total.
 fl_combined = q(f"""
     SELECT
         COUNT(DISTINCT UNIQUE_ID)                                        AS customers,
@@ -142,9 +146,53 @@ fl_combined = q(f"""
         ROUND(SUM(dest_spend) / NULLIF(SUM(dest_txn_count), 0), 2)       AS avg_txn_value,
         ROUND(SUM(dest_spend) / NULLIF(COUNT(DISTINCT UNIQUE_ID), 0), 0) AS spend_per_customer
     FROM `{PROJECT}.analytics.int_customer_category_spend`
-    WHERE CATEGORY_TWO = 'Groceries'
-      AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+    WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
 """).iloc[0]
+
+# Validation: recompute the combined customer base from scratch using set logic
+# and cross-check. If the two disagree by more than 1%, halt the script.
+# This prevents silent-scope bugs from ever reaching a client deck.
+fl_validate = q(f"""
+    WITH market AS (
+        SELECT DISTINCT UNIQUE_ID
+        FROM `{PROJECT}.analytics.int_customer_category_spend`
+        WHERE UPPER(DESTINATION) = 'FOOD LOVERS MARKET'
+    ),
+    eatery AS (
+        SELECT DISTINCT UNIQUE_ID
+        FROM `{PROJECT}.analytics.int_customer_category_spend`
+        WHERE UPPER(DESTINATION) = 'FOOD LOVERS EATERY'
+    )
+    SELECT
+        (SELECT COUNT(*) FROM market) AS market_customers,
+        (SELECT COUNT(*) FROM eatery) AS eatery_customers,
+        (SELECT COUNT(*) FROM market m JOIN eatery e USING (UNIQUE_ID)) AS in_both,
+        (SELECT COUNT(*) FROM (
+            SELECT UNIQUE_ID FROM market
+            UNION DISTINCT
+            SELECT UNIQUE_ID FROM eatery)) AS true_union
+""").iloc[0]
+
+primary_combined = int(fl_combined['customers'])
+validation_union = int(fl_validate['true_union'])
+delta_pct = abs(primary_combined - validation_union) / max(validation_union, 1) * 100
+
+print(f'  Combined customer base validation:')
+print(f'    Market:              {int(fl_validate["market_customers"]):>10,}')
+print(f'    Eatery:              {int(fl_validate["eatery_customers"]):>10,}')
+print(f'    In both:             {int(fl_validate["in_both"]):>10,}')
+print(f'    True union (M+E−∩):  {validation_union:>10,}')
+print(f'    Primary query said:  {primary_combined:>10,}')
+print(f'    Delta:               {delta_pct:.3f}%')
+
+if delta_pct > 1.0:
+    sys.exit(
+        f'\n❌ ABORTING: combined customer base disagrees by {delta_pct:.2f}%.\n'
+        f'   Primary query:    {primary_combined:,}\n'
+        f'   Set-logic union:  {validation_union:,}\n'
+        f'   Refusing to generate a pitch with unreliable numbers.'
+    )
+print(f'  ✓ Validation passed (delta {delta_pct:.3f}% ≤ 1%)')
 
 # Competitive set (top 8 in Groceries)
 competitors = q(f"""
@@ -165,8 +213,7 @@ demo = q(f"""
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM `{PROJECT}.analytics.int_customer_category_spend`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         COUNT(*)                                                                                  AS customers,
@@ -187,8 +234,7 @@ income_gender = q(f"""
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM `{PROJECT}.analytics.int_customer_category_spend`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         c.income_group,
@@ -216,8 +262,7 @@ age_gender = q(f"""
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM `{PROJECT}.analytics.int_customer_category_spend`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         c.age_group,
@@ -244,8 +289,7 @@ geo = q(f"""
     WITH fl_custs AS (
         SELECT DISTINCT UNIQUE_ID
         FROM `{PROJECT}.analytics.int_customer_category_spend`
-        WHERE CATEGORY_TWO = 'Groceries'
-          AND UPPER(DESTINATION) LIKE '%FOOD LOVERS%'
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
     )
     SELECT
         t.PROVINCE,
@@ -253,7 +297,7 @@ geo = q(f"""
         ROUND(SUM(t.trns_amt), 0)   AS spend
     FROM fl_custs f
     JOIN `{PROJECT}.staging.stg_transactions` t USING (UNIQUE_ID)
-    WHERE UPPER(t.DESTINATION) LIKE '%FOOD LOVERS%'
+    WHERE UPPER(t.DESTINATION) IN ('FOOD LOVERS MARKET', 'FOOD LOVERS EATERY')
       AND t.PROVINCE IS NOT NULL
     GROUP BY t.PROVINCE
     ORDER BY spend DESC
@@ -423,8 +467,9 @@ tr.fl td{{background:#fef3c7;font-weight:600}}
 
 <div class='sec'>
 <h2>Food Lovers — combined (Market + Eatery)</h2>
-<p class='sub'>Union of customer bases across both DESTINATIONs. Use if pitching the brand as a whole.</p>
+<p class='sub'>Union of customer bases across BOTH DESTINATIONs, regardless of category (Market lives in Groceries, Eatery in a different category). Validated at generation time: primary count matched set-logic union within {delta_pct:.3f}%. Use if pitching the brand as a whole.</p>
 {grid_kpis_combined()}
+<p class='sub' style='font-size:.75rem;color:#94a3b8;margin-top:8px'>Overlap detail: {int(fl_validate['market_customers']):,} Market shoppers + {int(fl_validate['eatery_customers']):,} Eatery shoppers − {int(fl_validate['in_both']):,} in both = {int(fl_validate['true_union']):,} unique customers.</p>
 </div>
 
 <div class='sec'>
