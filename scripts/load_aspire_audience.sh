@@ -30,10 +30,13 @@ case "$ENV" in
 esac
 
 SOURCE_URI="gs://testing-sandbox-123/ASPIRE_PRIMELIFE_20260706_FB.csv"
-# Use `project:dataset.table` form for bq CLI — `project.dataset.table` fails
-# in some regions with a misleading "Not found" error.
-SANDBOX_TABLE="fmn-sandbox:staging.aspire_primelife_meta_audience"
-TABLE="${PROJECT}:staging.aspire_primelife_meta_audience"
+# TWO forms of the same table:
+#   *_CLI  → project:dataset.table  (colon) — for `bq load`, `bq cp`, `bq show`
+#   *_SQL  → project.dataset.table  (dots)  — for SQL queries in `bq query`
+SANDBOX_TABLE_CLI="fmn-sandbox:staging.aspire_primelife_meta_audience"
+SANDBOX_TABLE_SQL="fmn-sandbox.staging.aspire_primelife_meta_audience"
+TABLE_CLI="${PROJECT}:staging.aspire_primelife_meta_audience"
+TABLE_SQL="${PROJECT}.staging.aspire_primelife_meta_audience"
 
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
     gcloud auth login --update-adc --quiet || exit 1
@@ -47,11 +50,11 @@ echo
 echo "════════════════════════════════════════════════════════════"
 echo "  ASPIRE PRIMELIFE Meta audience — $ENV_KIND"
 echo "  Project: $PROJECT"
-echo "  Target:  $TABLE"
+echo "  Target:  $TABLE_SQL"
 if [ "$ENV_KIND" = "sandbox" ]; then
     echo "  Source:  $SOURCE_URI (CSV load)"
 else
-    echo "  Source:  $SANDBOX_TABLE (bq cp from sandbox)"
+    echo "  Source:  $SANDBOX_TABLE_SQL (bq cp from sandbox)"
 fi
 echo "════════════════════════════════════════════════════════════"
 
@@ -80,9 +83,12 @@ if [ "$ENV_KIND" = "sandbox" ]; then
     fi
 
     echo
-    echo "── Loading CSV into $TABLE (--autodetect schema) ──"
+    echo "── Loading CSV into $TABLE_SQL (--autodetect schema) ──"
     echo "Using autodetect so column count/name mismatches don't kill the load."
     echo "All columns will be typed as detected; we can retype after inspection."
+    # CSV has NULL bytes (ASCII 0) in some hashed values → --ignore_unknown_values
+    # skips rows that violate expected types; --preserve_ascii_control_characters
+    # tolerates the ASCII 0 bytes so the row is kept instead of rejected.
     bq load \
         --project_id="$PROJECT" \
         --location=africa-south1 \
@@ -90,16 +96,18 @@ if [ "$ENV_KIND" = "sandbox" ]; then
         --replace \
         --skip_leading_rows=1 \
         --allow_quoted_newlines \
-        --max_bad_records=100 \
+        --max_bad_records=5000 \
+        --ignore_unknown_values \
+        --preserve_ascii_control_characters \
         --autodetect \
-        "$TABLE" \
+        "$TABLE_CLI" \
         "$SOURCE_URI"
 
     LOAD_STATUS=$?
     if [ $LOAD_STATUS -ne 0 ]; then
         echo
         echo "Load failed. Diagnostic hints:"
-        echo "  • Check that $TABLE dataset ($PROJECT.staging) exists — should"
+        echo "  • Check that $TABLE_SQL dataset ($PROJECT.staging) exists — should"
         echo "    (we verified earlier)"
         echo "  • Verify bucket read: gcloud storage cat $SOURCE_URI | head -3"
         echo "  • If the CSV has non-UTF8 chars, add --encoding=ISO-8859-1"
@@ -116,8 +124,8 @@ else
     bq cp \
         --force \
         --location=africa-south1 \
-        "$SANDBOX_TABLE" \
-        "$TABLE"
+        "$SANDBOX_TABLE_CLI" \
+        "$TABLE_CLI"
 
     if [ $? -ne 0 ]; then
         echo
@@ -132,7 +140,7 @@ fi
 
 echo
 echo "── Table loaded. Row count ──"
-bq_q "SELECT COUNT(*) AS row_count FROM \`$TABLE\`"
+bq_q "SELECT COUNT(*) AS row_count FROM \`$TABLE_SQL\`"
 
 echo
 echo "══════════════ SENSE-CHECKS ═══════════════════════════════"
@@ -159,7 +167,7 @@ bq_q "
         COUNTIF(gen      IS NULL OR TRIM(gen)      = '') AS null_gen,
         COUNTIF(age      IS NULL OR TRIM(age)      = '') AS null_age,
         COUNTIF(uid      IS NULL OR TRIM(uid)      = '') AS null_uid
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
@@ -185,7 +193,7 @@ bq_q "
         COUNT(DISTINCT gen)     AS d_gen,
         COUNT(DISTINCT age)     AS d_age,
         COUNT(DISTINCT uid)     AS d_uid
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
@@ -207,7 +215,7 @@ bq_q "
         COUNTIF(TRIM(COALESCE(madid, ''))  != '') AS have_madid,
         COUNTIF(TRIM(COALESCE(uid,   ''))  != '') AS have_uid,
         COUNT(*) AS total
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
@@ -215,7 +223,7 @@ echo "── 4. Duplicate uid check ──"
 bq_q "
     WITH uid_counts AS (
         SELECT uid, COUNT(*) AS n
-        FROM \`$TABLE\`
+        FROM \`$TABLE_SQL\`
         WHERE uid IS NOT NULL AND TRIM(uid) != ''
         GROUP BY uid
     )
@@ -234,7 +242,7 @@ bq_q "
     SELECT
         LENGTH(email) AS email_length,
         COUNT(*)      AS row_count
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE email IS NOT NULL AND TRIM(email) != ''
     GROUP BY email_length
     ORDER BY row_count DESC
@@ -250,7 +258,7 @@ bq_q "
         COUNTIF(REGEXP_CONTAINS(email, r'^[A-Fa-f0-9]{64}\$')) AS sha256_hex_any,
         COUNTIF(REGEXP_CONTAINS(email, r'@'))                AS looks_like_raw_email,
         COUNT(*)                                              AS total_non_null_email
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE email IS NOT NULL AND TRIM(email) != ''
 "
 
@@ -261,7 +269,7 @@ bq_q "
     SELECT
         SUBSTR(phone, 1, 3) AS first_3_chars,
         COUNT(*)            AS row_count
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE phone IS NOT NULL AND TRIM(phone) != ''
     GROUP BY first_3_chars
     ORDER BY row_count DESC
@@ -276,7 +284,7 @@ bq_q "
         COUNTIF(REGEXP_CONTAINS(phone, r'^[0-9]+\$'))          AS digits_only,
         COUNTIF(REGEXP_CONTAINS(phone, r'^\+[0-9]+\$'))         AS e164_with_plus,
         COUNT(*)                                                AS total_non_null_phone
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE phone IS NOT NULL AND TRIM(phone) != ''
 "
 
@@ -284,7 +292,7 @@ echo
 echo "── 9. Gender distinct values ──"
 bq_q "
     SELECT gen, COUNT(*) AS row_count
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE gen IS NOT NULL AND TRIM(gen) != ''
     GROUP BY gen
     ORDER BY row_count DESC
@@ -295,7 +303,7 @@ echo
 echo "── 10. Country distinct values ──"
 bq_q "
     SELECT country, COUNT(*) AS row_count
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
     WHERE country IS NOT NULL AND TRIM(country) != ''
     GROUP BY country
     ORDER BY row_count DESC
@@ -310,7 +318,7 @@ bq_q "
         MAX(SAFE_CAST(age AS INT64))                                AS max_age,
         ROUND(AVG(SAFE_CAST(age AS INT64)), 1)                      AS avg_age,
         COUNTIF(SAFE_CAST(age AS INT64) IS NULL AND TRIM(COALESCE(age,'')) != '') AS non_numeric_age
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
@@ -320,7 +328,7 @@ bq_q "
         MIN(SAFE_CAST(doby AS INT64))                                AS min_year,
         MAX(SAFE_CAST(doby AS INT64))                                AS max_year,
         COUNTIF(SAFE_CAST(doby AS INT64) IS NULL AND TRIM(COALESCE(doby,'')) != '') AS non_numeric_doby
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
@@ -333,12 +341,12 @@ bq_q "
         COUNTIF(REGEXP_CONTAINS(dob, r'^[A-Fa-f0-9]{64}\$'))                AS looks_hashed,
         COUNTIF(dob IS NULL OR TRIM(dob) = '')                              AS null_or_blank,
         COUNT(*)                                                            AS total
-    FROM \`$TABLE\`
+    FROM \`$TABLE_SQL\`
 "
 
 echo
 echo "── 14. First 5 rows (sample) ──"
-bq_q "SELECT * FROM \`$TABLE\` LIMIT 5"
+bq_q "SELECT * FROM \`$TABLE_SQL\` LIMIT 5"
 
 echo
 echo "════════════════════════════════════════════════════════════"
