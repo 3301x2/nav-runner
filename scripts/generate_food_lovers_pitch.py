@@ -450,6 +450,7 @@ html = f"""<!DOCTYPE html>
 <html lang='en'><head><meta charset='UTF-8'>
 <title>Food Lovers — Audience Snapshot</title>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0'></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -480,6 +481,22 @@ table {{ width:100%; border-collapse:collapse; margin:12px 0; font-size:.86rem; 
 th {{ background:#0f172a; color:#fff; padding:10px 12px; text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }}
 td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 tr.fl td {{ background:#fef3c7; font-weight:600; }}
+
+/* Branded cards for Market / Eatery / Combined split */
+.brand-card {{ background:#fff; border-radius:12px; padding:20px 22px; border:2px solid #f1f5f9; }}
+.brand-combined {{ border-color:#f59e0b; background:linear-gradient(180deg,#fffbeb 0%,#fff 60%); }}
+.brand-market   {{ border-color:#2E75B6; background:linear-gradient(180deg,#eff6ff 0%,#fff 60%); }}
+.brand-eatery   {{ border-color:#16a34a; background:linear-gradient(180deg,#f0fdf4 0%,#fff 60%); }}
+.brand-header   {{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }}
+.brand-header h3 {{ font-size:1.1rem; font-weight:700; color:#0f172a; margin:0; }}
+.brand-badge    {{ font-size:.66rem; font-weight:700; padding:3px 10px; border-radius:12px; letter-spacing:.06em; color:#fff; }}
+.brand-badge.combined {{ background:#d97706; }}
+.brand-badge.market   {{ background:#2E75B6; }}
+.brand-badge.eatery   {{ background:#16a34a; }}
+.brand-sub      {{ color:#64748b; font-size:.86rem; margin-bottom:14px; }}
+.brand-market .card {{ border-top-color:#2E75B6; }}
+.brand-eatery .card {{ border-top-color:#16a34a; }}
+.brand-combined .card {{ border-top-color:#d97706; }}
 </style>
 </head><body>
 
@@ -499,15 +516,41 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 
 <div class='sec'>
 <h2>How the audience splits between the two brands</h2>
-<div class='two-col'>
-<div>
-<h3 style='font-size:1rem;font-weight:600;color:#1e3a5f;margin-bottom:8px'>Food Lovers Market</h3>
-<p class='sub' style='margin-bottom:12px'>The supermarket footprint.</p>
+<p class='sub'>The combined audience above breaks down into the Market and Eatery footprints below. Some customers shop at both.</p>
+
+<div class='brand-card brand-combined'>
+<div class='brand-header'>
+<span class='brand-badge combined'>COMBINED</span>
+<h3>Food Lovers (Market + Eatery)</h3>
+</div>
+<p class='brand-sub'>Total unique cardholders across both brands.</p>
+<div class='row'>
+{''.join([
+    kpi_card('Customers', N(fl_combined['customers'])),
+    kpi_card('Annual Spend', R(fl_combined['total_spend'])),
+    kpi_card('Transactions', N(fl_combined['transactions'])),
+    kpi_card('Avg Basket', R(fl_combined['avg_txn_value'])),
+    kpi_card('Spend / Customer', R(fl_combined['spend_per_customer'])),
+])}
+</div>
+</div>
+
+<div class='two-col' style='margin-top:16px'>
+<div class='brand-card brand-market'>
+<div class='brand-header'>
+<span class='brand-badge market'>MARKET</span>
+<h3>Food Lovers Market</h3>
+</div>
+<p class='brand-sub'>The supermarket footprint.</p>
 {market_kpis}
 </div>
-<div>
-<h3 style='font-size:1rem;font-weight:600;color:#1e3a5f;margin-bottom:8px'>Food Lovers Eatery</h3>
-<p class='sub' style='margin-bottom:12px'>The prepared-food / bakery footprint.</p>
+
+<div class='brand-card brand-eatery'>
+<div class='brand-header'>
+<span class='brand-badge eatery'>EATERY</span>
+<h3>Food Lovers Eatery</h3>
+</div>
+<p class='brand-sub'>The prepared-food / bakery footprint.</p>
 {eatery_kpis}
 </div>
 </div>
@@ -597,9 +640,20 @@ const colors = {{
     seg:     ['#16a34a','#2E75B6','#f59e0b','#e11d48','#94a3b8'],
 }};
 
+// Register the datalabels plugin globally
+if (typeof ChartDataLabels !== 'undefined') {{
+    Chart.register(ChartDataLabels);
+}}
+
 function mkChart(id, cfg) {{
     const el = document.getElementById(id);
     if (!el) return;
+    // Disable datalabels by default; charts that want them opt in via cfg.options.plugins.datalabels
+    if (!cfg.options) cfg.options = {{}};
+    if (!cfg.options.plugins) cfg.options.plugins = {{}};
+    if (cfg.options.plugins.datalabels === undefined) {{
+        cfg.options.plugins.datalabels = {{ display: false }};
+    }}
     new Chart(el, cfg);
 }}
 
@@ -643,7 +697,7 @@ mkChart('chCompSpc', {{
     }}
 }});
 
-// Segments — donut showing quality mix
+// Segments — donut showing quality mix, with % labels on each slice
 mkChart('chSegments', {{
     type: 'doughnut',
     data: {{
@@ -651,12 +705,24 @@ mkChart('chSegments', {{
         datasets: [{{
             data: Data.segments.map(r => r.customers),
             backgroundColor: Data.segments.map((_,i) => colors.seg[i % colors.seg.length]),
-            borderColor: '#fff', borderWidth: 2
+            borderColor: '#fff', borderWidth: 3
         }}]
     }},
     options: {{
         responsive: true, maintainAspectRatio: false,
-        plugins: {{ legend: {{ position: 'right' }} }}
+        plugins: {{
+            legend: {{ position: 'right' }},
+            datalabels: {{
+                display: true,
+                color: '#fff',
+                font: {{ size: 13, weight: 'bold' }},
+                formatter: (value, ctx) => {{
+                    const total = ctx.chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
+                    const pct = ((value/total)*100).toFixed(1);
+                    return pct + '%';
+                }}
+            }}
+        }}
     }}
 }});
 
