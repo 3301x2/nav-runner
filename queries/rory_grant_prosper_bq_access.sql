@@ -1,42 +1,67 @@
 -- ═════════════════════════════════════════════════════════════════════
--- For Rory to run in the BigQuery console
+-- For Rory — grant Prosper access to load Aspire audience CSV
 --
--- Grants Prosper full BigQuery + GCS read access on both fmn-sandbox
--- and fmn-production so he can load audience CSVs from ANY bucket into
--- BQ and copy tables between the two projects.
+-- IMPORTANT: BigQuery's GRANT statement ONLY works at the schema/dataset
+-- level, NOT at the project level. Project-level IAM grants must be done
+-- via `gcloud` in Cloud Shell.
 --
--- Replace `PROSPER@example.com` with Prosper's actual email before running.
+-- Below is a mix:
+--   • Project-level roles → gcloud commands (Cloud Shell)
+--   • Dataset creation    → BigQuery SQL (paste into console)
 --
--- HOW TO RUN:
---   1. Open BQ console → set project to fmn-sandbox
---   2. Paste + run the sandbox block
---   3. Switch project to fmn-production
---   4. Paste + run the production block
---   5. Also run the staging-dataset-create blocks in each project
---
--- Notes:
---   • roles/bigquery.user includes bigquery.datasets.create (needed to
---     create the `staging` dataset — this was the missing piece last time)
---   • roles/bigquery.dataEditor lets Prosper read/write data in datasets
---   • roles/storage.objectViewer at the PROJECT level = read on every
---     bucket in the project (not just testing-sandbox-123)
---
--- Grants are idempotent — safe to re-run.
+-- Replace <PROSPER_EMAIL> with Prosper's real email in ALL the commands.
 -- ═════════════════════════════════════════════════════════════════════
 
 
--- ─── PROJECT: fmn-sandbox ──────────────────────────────────────────
--- Set project to fmn-sandbox in the BQ console, then run these:
+-- ────────────────────────────────────────────────────────────────────
+-- PART 1 — RUN IN CLOUD SHELL (gcloud, not BQ SQL)
+-- These grant Prosper project-level BQ + GCS access on both projects.
+-- ────────────────────────────────────────────────────────────────────
 
-GRANT `roles/bigquery.user`
-  ON PROJECT `fmn-sandbox`
-  TO "user:PROSPER@example.com";
+/*
 
-GRANT `roles/bigquery.dataEditor`
-  ON PROJECT `fmn-sandbox`
-  TO "user:PROSPER@example.com";
+# ── SANDBOX ───────────────────────────────────────────────────────
+gcloud projects add-iam-policy-binding fmn-sandbox \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/bigquery.user" \
+    --condition=None
 
--- Create staging dataset (needed for the audience load)
+gcloud projects add-iam-policy-binding fmn-sandbox \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/bigquery.dataEditor" \
+    --condition=None
+
+gcloud projects add-iam-policy-binding fmn-sandbox \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/storage.objectViewer" \
+    --condition=None
+
+
+# ── PRODUCTION ────────────────────────────────────────────────────
+gcloud projects add-iam-policy-binding fmn-production \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/bigquery.user" \
+    --condition=None
+
+gcloud projects add-iam-policy-binding fmn-production \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/bigquery.dataEditor" \
+    --condition=None
+
+gcloud projects add-iam-policy-binding fmn-production \
+    --member="user:<PROSPER_EMAIL>" \
+    --role="roles/storage.objectViewer" \
+    --condition=None
+
+*/
+
+
+-- ────────────────────────────────────────────────────────────────────
+-- PART 2 — RUN IN BIGQUERY CONSOLE
+-- Create the staging datasets in both projects.
+-- ────────────────────────────────────────────────────────────────────
+
+-- Set project to fmn-sandbox in the BQ console, then run:
 CREATE SCHEMA IF NOT EXISTS `fmn-sandbox.staging`
 OPTIONS (
   location = "africa-south1",
@@ -44,17 +69,7 @@ OPTIONS (
 );
 
 
--- ─── PROJECT: fmn-production ───────────────────────────────────────
--- Switch project to fmn-production in the BQ console, then run these:
-
-GRANT `roles/bigquery.user`
-  ON PROJECT `fmn-production`
-  TO "user:PROSPER@example.com";
-
-GRANT `roles/bigquery.dataEditor`
-  ON PROJECT `fmn-production`
-  TO "user:PROSPER@example.com";
-
+-- Switch project to fmn-production in the BQ console, then run:
 CREATE SCHEMA IF NOT EXISTS `fmn-production.staging`
 OPTIONS (
   location = "africa-south1",
@@ -62,30 +77,41 @@ OPTIONS (
 );
 
 
--- ═════════════════════════════════════════════════════════════════════
--- GCS BUCKET ACCESS — cannot be granted from BigQuery SQL.
--- Rory must run these in Cloud Shell or terminal:
---
---   gcloud projects add-iam-policy-binding fmn-sandbox \
---       --member="user:PROSPER@example.com" \
---       --role="roles/storage.objectViewer"
---
---   gcloud projects add-iam-policy-binding fmn-production \
---       --member="user:PROSPER@example.com" \
---       --role="roles/storage.objectViewer"
---
--- This grants read on EVERY bucket in each project — no more per-bucket
--- grants needed for future audience files.
--- ═════════════════════════════════════════════════════════════════════
+-- ────────────────────────────────────────────────────────────────────
+-- PART 3 — VERIFY (BigQuery console)
+-- Confirm the datasets were created and Prosper can see them.
+-- ────────────────────────────────────────────────────────────────────
+
+-- List all datasets in each project (should show `staging`):
+SELECT schema_name, location
+FROM `fmn-sandbox.INFORMATION_SCHEMA.SCHEMATA`
+ORDER BY schema_name;
+
+SELECT schema_name, location
+FROM `fmn-production.INFORMATION_SCHEMA.SCHEMATA`
+ORDER BY schema_name;
 
 
--- ─── OPTIONAL: verify what Prosper now has ─────────────────────────
--- Rory can run these to confirm the grants stuck:
+-- ────────────────────────────────────────────────────────────────────
+-- PART 4 — VERIFY IAM (Cloud Shell, gcloud)
+-- Confirm the roles Prosper now has on each project.
+-- ────────────────────────────────────────────────────────────────────
 
-SELECT * FROM `fmn-sandbox.region-africa-south1.INFORMATION_SCHEMA.OBJECT_PRIVILEGES`
-WHERE grantee = 'user:PROSPER@example.com'
-ORDER BY object_name;
+/*
 
-SELECT * FROM `fmn-production.region-africa-south1.INFORMATION_SCHEMA.OBJECT_PRIVILEGES`
-WHERE grantee = 'user:PROSPER@example.com'
-ORDER BY object_name;
+gcloud projects get-iam-policy fmn-sandbox \
+    --flatten="bindings[].members" \
+    --filter="bindings.members:<PROSPER_EMAIL>" \
+    --format="value(bindings.role)"
+
+gcloud projects get-iam-policy fmn-production \
+    --flatten="bindings[].members" \
+    --filter="bindings.members:<PROSPER_EMAIL>" \
+    --format="value(bindings.role)"
+
+# Expected output for each project (3 lines):
+#   roles/bigquery.dataEditor
+#   roles/bigquery.user
+#   roles/storage.objectViewer
+
+*/

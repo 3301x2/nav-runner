@@ -1,14 +1,14 @@
 # Message to send Rory
 
-**Subject:** BQ access — SQL you can paste + one gcloud step for GCS
+**Subject:** Access commands — 6 gcloud lines + 2 CREATE SCHEMA statements
 
 ---
 
 Hi Rory,
 
-Thanks for the editor grant — I'm still hitting `Dataset fmn-sandbox:staging not found` because dataset-create needs `bigquery.user` (not included in `bigquery.dataEditor`).
+Sorry — my last SQL was wrong. BigQuery's `GRANT` only works at the dataset level, not project level. Rewrote everything correctly. Should take about 2 minutes total.
 
-I've put together the exact SQL for you to paste into BQ so we can move faster. It's in the repo:
+**All the commands are in the repo:**
 
 ```
 nav-runner/queries/rory_grant_prosper_bq_access.sql
@@ -16,25 +16,16 @@ nav-runner/queries/rory_grant_prosper_bq_access.sql
 
 **What's in it:**
 
-1. **In BQ console (paste and run):** grants me `bigquery.user` + `bigquery.dataEditor` on both `fmn-sandbox` and `fmn-production`, and creates the `staging` dataset in both projects.
+**Part 1 — Cloud Shell (6 lines total, 3 per project):**
+Grants me `bigquery.user` + `bigquery.dataEditor` + `storage.objectViewer` at the project level on both `fmn-sandbox` and `fmn-production`. That's the full BQ + GCS read/write access I need to load audience CSVs from any bucket in either project.
 
-2. **In terminal / Cloud Shell (one command per project):** grants me `storage.objectViewer` at the **project level** so I can read any bucket in each project — no more per-bucket grants needed for future audience files.
+**Part 2 — BigQuery console (2 statements):**
+`CREATE SCHEMA IF NOT EXISTS ... staging` in each project. This is the piece that was missing — `bigquery.dataEditor` alone doesn't include `bigquery.datasets.create`, hence the "Dataset not found" error last time.
 
-```
-gcloud projects add-iam-policy-binding fmn-sandbox \
-    --member="user:<my-email>" \
-    --role="roles/storage.objectViewer"
+**Part 3 — Verify (queries at the bottom of the file):**
+Confirms the schemas exist and the IAM grants stuck.
 
-gcloud projects add-iam-policy-binding fmn-production \
-    --member="user:<my-email>" \
-    --role="roles/storage.objectViewer"
-```
+**One thing to swap:** just search-replace `<PROSPER_EMAIL>` with my actual email before running.
 
-Just replace `PROSPER@example.com` in the SQL and `<my-email>` in the gcloud commands with my actual email.
-
-Verification queries are at the bottom of the file so you can confirm the grants stuck.
-
-Once done, IAM takes 1-3 minutes to propagate — I'll re-auth and retry.
-
-Thanks a lot, appreciate the help,
+Thanks again for the help — appreciate it,
 Prosper
