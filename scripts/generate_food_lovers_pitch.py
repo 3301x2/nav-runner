@@ -319,6 +319,80 @@ trend = q(f"""
     ORDER BY month
 """).to_dict('records')
 
+# Fresh-first loyalists — customers whose FL share of grocery spend is very high.
+# Ties directly into Food Lovers' brand pillar ("fresh at value").
+loyalist = q(f"""
+    WITH fl_and_grocery AS (
+        SELECT
+            UNIQUE_ID,
+            SUM(CASE WHEN UPPER(DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+                     THEN dest_spend ELSE 0 END) AS fl_spend,
+            SUM(CASE WHEN CATEGORY_TWO = 'Groceries'
+                     THEN dest_spend ELSE 0 END) AS grocery_spend
+        FROM `{PROJECT}.analytics.int_customer_category_spend`
+        WHERE CATEGORY_TWO = 'Groceries'
+           OR UPPER(DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+        GROUP BY UNIQUE_ID
+        HAVING SUM(CASE WHEN UPPER(DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+                        THEN dest_spend ELSE 0 END) > 0
+    )
+    SELECT
+        COUNTIF(fl_spend / NULLIF(grocery_spend + fl_spend, 0) >= 0.60) AS loyalist_customers,
+        ROUND(SUM(CASE WHEN fl_spend / NULLIF(grocery_spend + fl_spend, 0) >= 0.60
+                       THEN fl_spend ELSE 0 END), 0)                    AS loyalist_spend,
+        COUNTIF(fl_spend / NULLIF(grocery_spend + fl_spend, 0) BETWEEN 0.20 AND 0.60) AS regular_customers,
+        COUNTIF(fl_spend / NULLIF(grocery_spend + fl_spend, 0) < 0.20)  AS occasional_customers
+    FROM fl_and_grocery
+""").iloc[0]
+
+# Aspirational acquisition target — young + mid-to-upper income + heavy grocery
+# spender at competitors (i.e. NOT Food Lovers). This is who they should be
+# trying to convert.
+acq_target = q(f"""
+    WITH grocery_spenders AS (
+        -- All customers who spend on groceries anywhere in SA
+        SELECT
+            cs.UNIQUE_ID,
+            SUM(cs.dest_spend) AS grocery_spend
+        FROM `{PROJECT}.analytics.int_customer_category_spend` cs
+        WHERE cs.CATEGORY_TWO = 'Groceries'
+        GROUP BY cs.UNIQUE_ID
+    ),
+    fl_customers AS (
+        SELECT DISTINCT UNIQUE_ID
+        FROM `{PROJECT}.analytics.int_customer_category_spend`
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+    )
+    SELECT
+        COUNT(DISTINCT g.UNIQUE_ID) AS acq_customers,
+        ROUND(SUM(g.grocery_spend), 0) AS acq_grocery_spend
+    FROM grocery_spenders g
+    JOIN `{PROJECT}.staging.stg_customers` c ON g.UNIQUE_ID = c.UNIQUE_ID
+    WHERE g.UNIQUE_ID NOT IN (SELECT UNIQUE_ID FROM fl_customers)
+      AND c.age BETWEEN 26 AND 45
+      AND c.income_group IN ('R23.5k-R32.5k','R32.5k-R56k','R56k+')
+      AND g.grocery_spend >= 12000  -- reasonable annual grocery spend threshold
+""").iloc[0]
+
+# Spend attached to each segment — for the activation opportunity cards
+segment_spend = q(f"""
+    WITH fl_activity AS (
+        SELECT
+            cs.UNIQUE_ID,
+            SUM(cs.dest_spend) AS fl_spend
+        FROM `{PROJECT}.analytics.int_customer_category_spend` cs
+        WHERE UPPER(cs.DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+        GROUP BY cs.UNIQUE_ID
+    )
+    SELECT
+        co.segment_name AS segment,
+        COUNT(*)                                                       AS customers,
+        ROUND(SUM(f.fl_spend), 0)                                      AS fl_annual_spend
+    FROM fl_activity f
+    JOIN `{PROJECT}.marts.mart_cluster_output` co USING (UNIQUE_ID)
+    GROUP BY co.segment_name
+""").to_dict('records')
+
 print('  → data collected')
 
 
@@ -397,34 +471,45 @@ if len(trend) >= 3:
     )
 
 
-# ── Activation opportunity buckets (translate segments to actionable plays) ─
+# ── Activation opportunity buckets — now with SPEND AT STAKE, not just headcount
 seg_by_name = {s['segment']: s for s in segments}
+seg_spend_by_name = {s['segment']: s for s in segment_spend}
 def _seg(name, key='customers'):
     row = seg_by_name.get(name)
     return int(row[key]) if row else 0
+def _seg_spend(name):
+    row = seg_spend_by_name.get(name)
+    return int(row['fl_annual_spend']) if row else 0
 
-grow_pool     = _seg('Steady Mid-Tier')                                  # upsell / grow spend
-protect_pool  = _seg('Champions') + _seg('Loyal High Value')             # retain / VIP
-reengage_pool = _seg('At Risk') + _seg('Dormant')                        # re-activate
+grow_pool     = _seg('Steady Mid-Tier')
+protect_pool  = _seg('Champions') + _seg('Loyal High Value')
+reengage_pool = _seg('At Risk') + _seg('Dormant')
+
+protect_spend  = _seg_spend('Champions') + _seg_spend('Loyal High Value')
+grow_spend     = _seg_spend('Steady Mid-Tier')
+reengage_spend = _seg_spend('At Risk') + _seg_spend('Dormant')
 
 activation_cards = ''.join([
     f'''<div class="act-card act-protect">
       <div class="act-badge">PROTECT</div>
       <h3>Champions &amp; Loyal High Value</h3>
       <div class="act-size">{N(protect_pool)}</div>
-      <div class="act-desc">Your highest-value audience. Retention campaigns, VIP perks, early-access product launches. Losing one of these costs 5-10× more than acquiring a new mid-tier customer.</div>
+      <div class="act-money">{R(protect_spend)} annual spend at stake</div>
+      <div class="act-desc">Your highest-value audience — the aspirational shoppers who make Food Lovers their fresh-first choice. Retention plays: premium-fresh subscription boxes, VIP tasting events at new Market openings, early access to Earth Lovers-branded lines. Losing one costs 5-10× more than acquiring a new mid-tier customer.</div>
     </div>''',
     f'''<div class="act-card act-grow">
       <div class="act-badge">GROW</div>
       <h3>Steady Mid-Tier</h3>
       <div class="act-size">{N(grow_pool)}</div>
-      <div class="act-desc">Reliable regulars ready to be nudged upward. Loyalty programme upgrades, category-expansion promotions, basket-builder incentives.</div>
+      <div class="act-money">{R(grow_spend)} current spend · upside potential</div>
+      <div class="act-desc">Reliable regulars ready to trade up. Basket-builder promos (fresh + deli + bakery bundles), Eatery cross-sell, and value-first messaging that reinforces your "cheapest basket" positioning.</div>
     </div>''',
     f'''<div class="act-card act-reengage">
       <div class="act-badge">RE-ENGAGE</div>
       <h3>Dormant &amp; At Risk</h3>
       <div class="act-size">{N(reengage_pool)}</div>
-      <div class="act-desc">Previously active customers with fading engagement. Win-back offers, personalised come-back campaigns, targeted deals on categories they used to shop.</div>
+      <div class="act-money">{R(reengage_spend)} lapsed spend to recover</div>
+      <div class="act-desc">Previously active customers with fading engagement. Win-back with your unique wedge: freshness + value that competitors can't match. Personalised come-back offers on their old favourite categories.</div>
     </div>''',
 ])
 
@@ -558,7 +643,8 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 .act-card {{ background:#fff; border-radius:12px; padding:20px 22px; border:2px solid #f1f5f9; position:relative; }}
 .act-card h3 {{ font-size:1.05rem; font-weight:700; color:#0f172a; margin:8px 0 4px; }}
 .act-badge {{ display:inline-block; font-size:.65rem; font-weight:700; padding:3px 10px; border-radius:12px; letter-spacing:.06em; color:#fff; }}
-.act-size {{ font-size:1.7rem; font-weight:700; color:#0f172a; margin:6px 0 8px; font-variant-numeric:tabular-nums; }}
+.act-size {{ font-size:1.7rem; font-weight:700; color:#0f172a; margin:6px 0 0; font-variant-numeric:tabular-nums; }}
+.act-money {{ font-size:.8rem; font-weight:600; color:#78350f; margin:4px 0 10px; letter-spacing:.01em; }}
 .act-desc {{ font-size:.85rem; color:#475569; line-height:1.55; }}
 .act-protect  {{ border-color:#16a34a; background:linear-gradient(180deg,#f0fdf4 0%,#fff 60%); }}
 .act-protect  .act-badge {{ background:#16a34a; }}
@@ -581,8 +667,8 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 <div class='ctn'>
 
 <div class='sec hero'>
-<h2>The audience at a glance</h2>
-<p class='sub'>Distinct FNB cardholders who transacted at Food Lovers (Market or Eatery) in the last 12 months.</p>
+<h2>The reach story</h2>
+<p class='sub'>Distinct FNB cardholders shopping at Food Lovers (Market + Eatery) in the last 12 months — a real, addressable audience of aspirational South African households.</p>
 {combined_kpis}
 </div>
 
@@ -643,7 +729,7 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 <h2>Customer quality</h2>
 <p class='sub'>Food Lovers customers clustered by FNB's behavioural segmentation model. Segments reflect FNB-wide activity (not Food Lovers-specific).</p>
 <div class='callout'>
-<b>{top_2_segments_pct}% of Food Lovers customers are in FNB's two highest-value segments</b> — a strong indicator of an affluent, engaged audience.
+<b>{top_2_segments_pct}% of Food Lovers customers are in FNB's two highest-value segments</b> — evidence that your aspirational-middle-class positioning is landing. Your customers are the same people banking premium services elsewhere in the FNB ecosystem.
 </div>
 <div class='two-col'>
 <div class='chbox'><canvas id='chSegments'></canvas></div>
@@ -696,9 +782,36 @@ Full age and income breakdowns follow below.
 
 <div class='sec'>
 <h2>Activation opportunities</h2>
-<p class='sub'>The audience isn't monolithic — it's three distinct pools, each with a different play. Sizes below are Food Lovers customers who fit each segment based on their FNB-wide behaviour.</p>
+<p class='sub'>The audience isn't monolithic — it's three distinct pools, each with a different play, and a real spend number attached. Sizes below are Food Lovers customers who fit each segment based on their FNB-wide behaviour.</p>
 <div class='act-row'>
 {activation_cards}
+</div>
+</div>
+
+<div class='sec' style='background:linear-gradient(180deg,#f0fdf4 0%,#fff 40%); border:2px solid #16a34a'>
+<h2 style='color:#166534'>Your fresh-first loyalists</h2>
+<p class='sub'>Customers where <b>60%+ of their grocery basket</b> is spent at Food Lovers — the ones who chose freshness and value as a way of life. This is your brand's armour.</p>
+<div class='row'>
+{kpi_card('Loyalist customers', N(loyalist['loyalist_customers']))}
+{kpi_card('Annual spend from loyalists', R(loyalist['loyalist_spend']))}
+{kpi_card('Regular shoppers', N(loyalist['regular_customers']), '20-60% of grocery basket')}
+{kpi_card('Occasional shoppers', N(loyalist['occasional_customers']), '<20% of grocery basket')}
+</div>
+<div class='callout' style='margin-top:14px'>
+Loyalists are 5× more valuable than casual shoppers. Every basket-share point you win from Regular → Loyalist is worth thousands of Rands over their lifetime. Use Earth Lovers messaging + fresh subscriptions to lock them in.
+</div>
+</div>
+
+<div class='sec' style='background:linear-gradient(180deg,#eff6ff 0%,#fff 40%); border:2px solid #2E75B6'>
+<h2 style='color:#1e40af'>Aspirational acquisition target</h2>
+<p class='sub'>FNB cardholders who match your ideal shopper — young professionals, mid-to-upper income, active grocery spenders — <b>but who don't shop at Food Lovers yet</b>. This is who to steal from the premium chains.</p>
+<div class='row'>
+{kpi_card('Prospects', N(acq_target['acq_customers']), '26–45, R23.5k+ income')}
+{kpi_card('Annual grocery spend', R(acq_target['acq_grocery_spend']), 'currently going elsewhere')}
+{kpi_card('Avg spend per prospect', R(int(acq_target['acq_grocery_spend']) / max(int(acq_target['acq_customers']), 1)))}
+</div>
+<div class='callout' style='margin-top:14px'>
+Winning even a small share of this pool means real growth. Position on "fresh-first at a better price than Woolworths" — that's the wedge that lands with this segment.
 </div>
 </div>
 
