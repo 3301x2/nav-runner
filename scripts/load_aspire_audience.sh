@@ -419,12 +419,12 @@ bq_q "SELECT * FROM \`$TABLE_SQL\` LIMIT 5"
 
 echo
 echo "════════════════════════════════════════════════════════════"
-echo "  Done. Load-and-check complete for $TABLE"
+echo "  Done. Load-and-check complete for $TABLE_SQL"
 echo
 echo "  Next steps if numbers look good:"
 echo "  1. Retype columns after inspection (e.g. age → INT64 if all"
 echo "     numeric, doby → INT64, dob → DATE if parseable)"
-echo "  2. Copy the CSV to a prod bucket and rerun with:"
-echo "       gcloud storage cp $SOURCE_URI gs://<prod-bucket>/"
-echo "       PROD_BUCKET=<prod-bucket> bash $0 production"
+echo "  2. If you're on sandbox and want to promote to prod, run:"
+echo "       bash $0 production"
+echo "     (does bq cp from this sandbox table to fmn-production-462014)"
 echo "════════════════════════════════════════════════════════════"
