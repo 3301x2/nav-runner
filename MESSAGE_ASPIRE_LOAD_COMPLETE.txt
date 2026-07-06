@@ -1,0 +1,22 @@
+Update on the Aspire file:
+
+The re-uploaded CSV loaded cleanly into fmn-sandbox. 1,576,827 rows in BQ (above the ≥1.5M expected).
+
+Meta-readiness confirmed:
+  • Every row has email + phone + madid + uid (4 identifiers each)
+  • All emails are valid SHA-256 hex hashes (64-char lowercase)
+  • All phones are valid SHA-256 hex hashes
+  • Zero duplicate UIDs
+  • Zero rows with missing identifiers
+
+Sense-check details:
+  • Populated columns: email, phone, madid, fn, ln, country, uid
+  • Placeholder-only columns: email2/3, phone2/3, zip, ct, st, dob, doby, gen, age
+    (this is fine — Meta only needs one of email/phone/madid per row for matching)
+
+Table: fmn-sandbox.staging.aspire_primelife_meta_audience
+
+Waiting on Rory to grant BigQuery User + BigQuery Data Editor on fmn-production so I can copy the sandbox table across for activation. Will confirm once done.
+
+Thanks,
+Prosper
