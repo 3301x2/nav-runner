@@ -83,12 +83,12 @@ if [ "$ENV_KIND" = "sandbox" ]; then
     fi
 
     echo
-    echo "── Loading CSV into $TABLE_SQL (--autodetect schema) ──"
-    echo "Using autodetect so column count/name mismatches don't kill the load."
-    echo "All columns will be typed as detected; we can retype after inspection."
-    # CSV has NULL bytes (ASCII 0) in some hashed values → --ignore_unknown_values
-    # skips rows that violate expected types; --preserve_ascii_control_characters
-    # tolerates the ASCII 0 bytes so the row is kept instead of rejected.
+    echo "── Loading CSV into $TABLE_SQL ──"
+    echo "Explicit schema: all 18 columns as STRING (matches the header we peeked at)."
+    # CSV has NULL bytes (ASCII 0) in some hashed values →
+    # --preserve_ascii_control_characters tolerates them (row kept, not rejected).
+    # Explicit schema so we KNOW the column names — autodetect renames them
+    # unpredictably ("string_field_0" etc.), breaking downstream sense-checks.
     bq load \
         --project_id="$PROJECT" \
         --location=africa-south1 \
@@ -97,9 +97,8 @@ if [ "$ENV_KIND" = "sandbox" ]; then
         --skip_leading_rows=1 \
         --allow_quoted_newlines \
         --max_bad_records=5000 \
-        --ignore_unknown_values \
         --preserve_ascii_control_characters \
-        --autodetect \
+        --schema="email:STRING,email2:STRING,email3:STRING,phone:STRING,phone2:STRING,phone3:STRING,madid:STRING,fn:STRING,ln:STRING,zip:STRING,ct:STRING,st:STRING,country:STRING,dob:STRING,doby:STRING,gen:STRING,age:STRING,uid:STRING" \
         "$TABLE_CLI" \
         "$SOURCE_URI"
 
@@ -137,6 +136,15 @@ else
         exit 1
     fi
 fi
+
+echo
+echo "── Actual column names in the loaded table ──"
+bq_q "
+    SELECT column_name, data_type, ordinal_position
+    FROM \`${PROJECT}\`.staging.INFORMATION_SCHEMA.COLUMNS
+    WHERE table_name = 'aspire_primelife_meta_audience'
+    ORDER BY ordinal_position
+"
 
 echo
 echo "── Table loaded. Row count ──"
