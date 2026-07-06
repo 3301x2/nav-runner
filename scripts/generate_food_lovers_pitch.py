@@ -374,6 +374,60 @@ def kpi_card(label: str, value: str, sub: str = '') -> str:
 
 now = datetime.now().strftime('%d %B %Y')
 
+# ── Trend narrative (compute the story so we can print it below the chart) ─
+trend_narrative = ''
+if len(trend) >= 3:
+    first_half = trend[:len(trend)//2]
+    second_half = trend[len(trend)//2:]
+    avg_first  = sum(m['spend'] for m in first_half)  / len(first_half)
+    avg_second = sum(m['spend'] for m in second_half) / len(second_half)
+    direction_pct = round(100 * (avg_second - avg_first) / max(avg_first, 1), 1)
+    peak_month  = max(trend, key=lambda m: m['spend'])
+    trough_month = min(trend, key=lambda m: m['spend'])
+    if direction_pct > 3:
+        direction = f'<b style="color:#16a34a">growing</b> ({direction_pct:+.1f}% H1→H2)'
+    elif direction_pct < -3:
+        direction = f'<b style="color:#e11d48">softening</b> ({direction_pct:+.1f}% H1→H2)'
+    else:
+        direction = f'<b style="color:#334155">stable</b> ({direction_pct:+.1f}% H1→H2)'
+    trend_narrative = (
+        f'Food Lovers monthly spend is {direction}. Peak month: '
+        f'<b>{esc(peak_month["month"])}</b> ({R(peak_month["spend"])}). '
+        f'Softest month: <b>{esc(trough_month["month"])}</b> ({R(trough_month["spend"])}).'
+    )
+
+
+# ── Activation opportunity buckets (translate segments to actionable plays) ─
+seg_by_name = {s['segment']: s for s in segments}
+def _seg(name, key='customers'):
+    row = seg_by_name.get(name)
+    return int(row[key]) if row else 0
+
+grow_pool     = _seg('Steady Mid-Tier')                                  # upsell / grow spend
+protect_pool  = _seg('Champions') + _seg('Loyal High Value')             # retain / VIP
+reengage_pool = _seg('At Risk') + _seg('Dormant')                        # re-activate
+
+activation_cards = ''.join([
+    f'''<div class="act-card act-protect">
+      <div class="act-badge">PROTECT</div>
+      <h3>Champions &amp; Loyal High Value</h3>
+      <div class="act-size">{N(protect_pool)}</div>
+      <div class="act-desc">Your highest-value audience. Retention campaigns, VIP perks, early-access product launches. Losing one of these costs 5-10× more than acquiring a new mid-tier customer.</div>
+    </div>''',
+    f'''<div class="act-card act-grow">
+      <div class="act-badge">GROW</div>
+      <h3>Steady Mid-Tier</h3>
+      <div class="act-size">{N(grow_pool)}</div>
+      <div class="act-desc">Reliable regulars ready to be nudged upward. Loyalty programme upgrades, category-expansion promotions, basket-builder incentives.</div>
+    </div>''',
+    f'''<div class="act-card act-reengage">
+      <div class="act-badge">RE-ENGAGE</div>
+      <h3>Dormant &amp; At Risk</h3>
+      <div class="act-size">{N(reengage_pool)}</div>
+      <div class="act-desc">Previously active customers with fading engagement. Win-back offers, personalised come-back campaigns, targeted deals on categories they used to shop.</div>
+    </div>''',
+])
+
 # Combined hero KPIs
 combined_kpis = '<div class="row">' + ''.join([
     kpi_card('Customers', N(fl_combined['customers']), 'unique FNB cardholders'),
@@ -497,6 +551,24 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
 .brand-market .card {{ border-top-color:#2E75B6; }}
 .brand-eatery .card {{ border-top-color:#16a34a; }}
 .brand-combined .card {{ border-top-color:#d97706; }}
+
+/* Activation opportunity cards */
+.act-row {{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }}
+@media(max-width:850px) {{ .act-row {{ grid-template-columns:1fr; }} }}
+.act-card {{ background:#fff; border-radius:12px; padding:20px 22px; border:2px solid #f1f5f9; position:relative; }}
+.act-card h3 {{ font-size:1.05rem; font-weight:700; color:#0f172a; margin:8px 0 4px; }}
+.act-badge {{ display:inline-block; font-size:.65rem; font-weight:700; padding:3px 10px; border-radius:12px; letter-spacing:.06em; color:#fff; }}
+.act-size {{ font-size:1.7rem; font-weight:700; color:#0f172a; margin:6px 0 8px; font-variant-numeric:tabular-nums; }}
+.act-desc {{ font-size:.85rem; color:#475569; line-height:1.55; }}
+.act-protect  {{ border-color:#16a34a; background:linear-gradient(180deg,#f0fdf4 0%,#fff 60%); }}
+.act-protect  .act-badge {{ background:#16a34a; }}
+.act-grow     {{ border-color:#2E75B6; background:linear-gradient(180deg,#eff6ff 0%,#fff 60%); }}
+.act-grow     .act-badge {{ background:#2E75B6; }}
+.act-reengage {{ border-color:#e11d48; background:linear-gradient(180deg,#fef2f2 0%,#fff 60%); }}
+.act-reengage .act-badge {{ background:#e11d48; }}
+
+/* Trend narrative callout */
+.trend-story {{ background:#f1f5f9; border-radius:10px; padding:14px 18px; margin-top:14px; font-size:.94rem; color:#334155; line-height:1.55; }}
 </style>
 </head><body>
 
@@ -617,14 +689,23 @@ Full age and income breakdowns follow below.
 
 <div class='sec'>
 <h2>Monthly trend</h2>
-<p class='sub'>Food Lovers spend and customer counts month-over-month.</p>
+<p class='sub'>Food Lovers spend and customer counts month-over-month across the last 12 months.</p>
 <div class='chbox tall'><canvas id='chTrend'></canvas></div>
+<div class='trend-story'>{trend_narrative}</div>
 </div>
 
 <div class='sec'>
-<h2>What else they buy</h2>
-<p class='sub'>The top categories these customers spend in beyond food. Useful for co-brand / adjacency thinking.</p>
-<table><tr><th>Category</th><th>Shoppers</th><th>Spend</th></tr>{cross_shop_rows}</table>
+<h2>Activation opportunities</h2>
+<p class='sub'>The audience isn't monolithic — it's three distinct pools, each with a different play. Sizes below are Food Lovers customers who fit each segment based on their FNB-wide behaviour.</p>
+<div class='act-row'>
+{activation_cards}
+</div>
+</div>
+
+<div class='sec'>
+<h2>Adjacent spend — bundling &amp; co-brand opportunities</h2>
+<p class='sub'>The top non-food categories your customers already spend in. Useful for bundle offers, co-brand partnerships, and channel targeting beyond the grocery aisle.</p>
+<table><tr><th>Category</th><th>Shoppers</th><th>Annual spend</th></tr>{cross_shop_rows}</table>
 </div>
 
 </div>
@@ -697,11 +778,12 @@ mkChart('chCompSpc', {{
     }}
 }});
 
-// Segments — donut showing quality mix, with % labels on each slice
+// Segments — donut with % labels on slices ≥ 8% (small slices skip to avoid overlap)
+// Legend on the right also carries the % so nothing is lost even when the slice label hides
 mkChart('chSegments', {{
     type: 'doughnut',
     data: {{
-        labels: Data.segments.map(r => r.name),
+        labels: Data.segments.map(r => r.name + ' (' + r.pct.toFixed(1) + '%)'),
         datasets: [{{
             data: Data.segments.map(r => r.customers),
             backgroundColor: Data.segments.map((_,i) => colors.seg[i % colors.seg.length]),
@@ -710,16 +792,20 @@ mkChart('chSegments', {{
     }},
     options: {{
         responsive: true, maintainAspectRatio: false,
+        cutout: '58%',
         plugins: {{
-            legend: {{ position: 'right' }},
+            legend: {{ position: 'right', labels: {{ font: {{ size: 12 }}, padding: 12 }} }},
             datalabels: {{
-                display: true,
+                display: (ctx) => {{
+                    const total = ctx.chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
+                    const value = ctx.dataset.data[ctx.dataIndex];
+                    return (value/total) * 100 >= 8;   // hide labels on slices under 8%
+                }},
                 color: '#fff',
-                font: {{ size: 13, weight: 'bold' }},
+                font: {{ size: 14, weight: 'bold' }},
                 formatter: (value, ctx) => {{
                     const total = ctx.chart.data.datasets[0].data.reduce((a,b) => a+b, 0);
-                    const pct = ((value/total)*100).toFixed(1);
-                    return pct + '%';
+                    return ((value/total)*100).toFixed(1) + '%';
                 }}
             }}
         }}
