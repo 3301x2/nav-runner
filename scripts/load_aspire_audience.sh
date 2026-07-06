@@ -8,7 +8,7 @@
 # Mode:
 #   sandbox    → LOAD CSV from GCS into fmn-sandbox.staging.aspire_primelife_meta_audience
 #                  + run every sense-check
-#   production → COPY the sandbox table into fmn-production.staging.aspire_primelife_meta_audience
+#   production → COPY the sandbox table into fmn-production-462814.staging.aspire_primelife_meta_audience
 #                  using `bq cp` (no CSV touch on prod side)
 #                  + run every sense-check against the prod copy
 #
@@ -25,7 +25,7 @@ set -uo pipefail
 ENV="${1:-sandbox}"
 case "$ENV" in
     sandbox|dev|sb)     ENV_KIND="sandbox";    PROJECT="fmn-sandbox"    ;;
-    production|prod|prd) ENV_KIND="production"; PROJECT="fmn-production" ;;
+    production|prod|prd) ENV_KIND="production"; PROJECT="fmn-production-462814" ;;
     *) echo "Usage: bash $0 [sandbox|production]"; exit 1 ;;
 esac
 
@@ -133,7 +133,7 @@ else
     # Production: copy the already-sense-checked sandbox table into prod BQ.
     # `bq cp` works cross-project as long as your identity has:
     #   - bigquery.dataViewer (or higher) on fmn-sandbox
-    #   - bigquery.dataEditor (or higher) on fmn-production
+    #   - bigquery.dataEditor (or higher) on fmn-production-462814
 
     # Confirm the sandbox source exists before we try to copy it
     echo
@@ -174,7 +174,7 @@ else
             echo "Common causes:"
             echo "  • IAM propagation still in flight — wait 2-3 min and rerun"
             echo "  • Missing roles/bigquery.dataViewer on fmn-sandbox"
-            echo "  • Missing roles/bigquery.dataEditor on fmn-production"
+            echo "  • Missing roles/bigquery.dataEditor on fmn-production-462814"
             echo "  • Region mismatch (both datasets must be in africa-south1)"
             exit 1
         fi

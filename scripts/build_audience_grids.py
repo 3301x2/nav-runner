@@ -39,7 +39,7 @@ from google.cloud import bigquery
 ENV = sys.argv[1] if len(sys.argv) > 1 else 'sandbox'
 PROJECT_MAP = {
     'sandbox': 'fmn-sandbox', 'dev': 'fmn-sandbox', 'sb': 'fmn-sandbox',
-    'production': 'fmn-production', 'prod': 'fmn-production', 'prd': 'fmn-production',
+    'production': 'fmn-production-462814', 'prod': 'fmn-production-462814', 'prd': 'fmn-production-462814',
 }
 if ENV not in PROJECT_MAP:
     sys.exit(f'Usage: python3 {sys.argv[0]} [sandbox|production]')

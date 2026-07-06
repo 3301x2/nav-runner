@@ -1,7 +1,7 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
 # Diagnostic — check exactly what access you have on fmn-sandbox and
-# fmn-production so you can tell Rory precisely what's missing.
+# fmn-production-462814 so you can tell Rory precisely what's missing.
 #
 # Checks:
 #   1. Which account you're authenticated as
@@ -18,7 +18,7 @@
 set -uo pipefail
 
 SANDBOX="fmn-sandbox"
-PROD="fmn-production"
+PROD="fmn-production-462814"
 CSV_BUCKET="testing-sandbox-123"
 CSV_OBJECT="ASPIRE_PRIMELIFE_20260706_FB.csv"
 
