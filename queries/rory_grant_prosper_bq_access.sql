@@ -9,7 +9,7 @@
 --   • Project-level roles → gcloud commands (Cloud Shell)
 --   • Dataset creation    → BigQuery SQL (paste into console)
 --
--- Replace <PROSPER_EMAIL> with Prosper's real email in ALL the commands.
+-- Replace ndwakhulu.sikhwari@nav.co.za with Prosper's real email in ALL the commands.
 -- ═════════════════════════════════════════════════════════════════════
 
 
@@ -22,34 +22,34 @@
 
 # ── SANDBOX ───────────────────────────────────────────────────────
 gcloud projects add-iam-policy-binding fmn-sandbox \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/bigquery.user" \
     --condition=None
 
 gcloud projects add-iam-policy-binding fmn-sandbox \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/bigquery.dataEditor" \
     --condition=None
 
 gcloud projects add-iam-policy-binding fmn-sandbox \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/storage.objectViewer" \
     --condition=None
 
 
 # ── PRODUCTION ────────────────────────────────────────────────────
 gcloud projects add-iam-policy-binding fmn-production \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/bigquery.user" \
     --condition=None
 
 gcloud projects add-iam-policy-binding fmn-production \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/bigquery.dataEditor" \
     --condition=None
 
 gcloud projects add-iam-policy-binding fmn-production \
-    --member="user:<PROSPER_EMAIL>" \
+    --member="user:ndwakhulu.sikhwari@nav.co.za" \
     --role="roles/storage.objectViewer" \
     --condition=None
 
@@ -101,12 +101,12 @@ ORDER BY schema_name;
 
 gcloud projects get-iam-policy fmn-sandbox \
     --flatten="bindings[].members" \
-    --filter="bindings.members:<PROSPER_EMAIL>" \
+    --filter="bindings.members:ndwakhulu.sikhwari@nav.co.za" \
     --format="value(bindings.role)"
 
 gcloud projects get-iam-policy fmn-production \
     --flatten="bindings[].members" \
-    --filter="bindings.members:<PROSPER_EMAIL>" \
+    --filter="bindings.members:ndwakhulu.sikhwari@nav.co.za" \
     --format="value(bindings.role)"
 
 # Expected output for each project (3 lines):

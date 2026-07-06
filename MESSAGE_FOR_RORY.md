@@ -6,7 +6,7 @@
 
 Hi Rory,
 
-Sorry — my last SQL was wrong. BigQuery's `GRANT` only works at the dataset level, not project level. Rewrote everything correctly. Should take about 2 minutes total.
+Sorry — my last SQL was wrong. BigQuery's `GRANT` only works at the dataset level, not project level. Rewrote everything correctly. Should take about 2 minutes total. Everything below is ready to run — my email (`ndwakhulu.sikhwari@nav.co.za`) is already filled in.
 
 **All the commands are in the repo:**
 
@@ -24,8 +24,6 @@ Grants me `bigquery.user` + `bigquery.dataEditor` + `storage.objectViewer` at th
 
 **Part 3 — Verify (queries at the bottom of the file):**
 Confirms the schemas exist and the IAM grants stuck.
-
-**One thing to swap:** just search-replace `<PROSPER_EMAIL>` with my actual email before running.
 
 Thanks again for the help — appreciate it,
 Prosper
