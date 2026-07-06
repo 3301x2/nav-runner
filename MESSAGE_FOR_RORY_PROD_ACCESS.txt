@@ -1,0 +1,34 @@
+Hi Rory,
+
+Loaded the Aspire audience CSV into fmn-sandbox.staging.aspire_primelife_meta_audience. Ran a full sense-check — data is clean and ready for Meta activation.
+
+── Load summary ──
+
+  • 15,407 rows loaded from gs://testing-sandbox-123/ASPIRE_PRIMELIFE_20260706_FB.csv
+  • 16 rows rejected during the load (~0.1%). Two failure modes:
+      - A handful had column-count mismatches (some had 19 columns instead of 18 — stray comma; others had only 3 — truncated).
+      - One row had a field larger than BigQuery's 65,535-byte STRING limit (a hashed value got mangled).
+  • Loss is small and expected for a real-world CSV.
+
+── What the data is ──
+
+Meta / Facebook Custom Audience file. The "_FB" in the filename plus the schema (email + phone + madid + fn + ln + hashed dob, etc.) is the Meta Custom Audience standard. This file only supports Meta — Google and TikTok would need separate exports with different schemas.
+
+Every loaded row has a valid identifier (email + uid), no duplicates on uid, and every email is a valid 64-char SHA-256 hash. Ready for LiveRamp / Meta.
+
+── What I need from you ──
+
+To copy this table across to fmn-production I need two BigQuery roles on the prod project. Easiest via the console:
+
+  1. Go to: https://console.cloud.google.com/iam-admin/iam?project=fmn-production
+  2. Click "GRANT ACCESS" at the top
+  3. In the "New principals" field, add: ndwakhulu.sikhwari@nav.co.za
+  4. In "Select a role", add these two:
+       • BigQuery User          (roles/bigquery.user)
+       • BigQuery Data Editor   (roles/bigquery.dataEditor)
+  5. Save
+
+That's it. Once done I'll copy the sandbox table across to prod (bq cp, ~30 seconds) and re-run the sense-check to confirm the copy is intact.
+
+Thanks!
+Prosper
