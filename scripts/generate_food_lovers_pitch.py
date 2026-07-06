@@ -434,7 +434,7 @@ for r in competitors:
 
 # Segment quality highlight
 top_2_segments_pct = round(sum(s['pct'] for s in segments[:2]), 1) if len(segments) >= 2 else 0
-top_seg_name = segments[0]['name'] if segments else ''
+top_seg_name = segments[0]['segment'] if segments else ''
 
 # Cross-shop table
 cross_shop_rows = ''
