@@ -72,6 +72,15 @@ def R(v) -> str:
     return f'R{v:,.0f}'
 
 
+def R_exact(v) -> str:
+    """Full-precision Rand formatter for values where rounding to R4k / R1k
+    hides real differences (e.g. spend per customer where R4,181 vs R1,150
+    tells a story that R4k / R1k does not)."""
+    if v is None or pd.isna(v):
+        return 'N/A'
+    return f'R{float(v):,.0f}'
+
+
 def N(v) -> str:
     if v is None or pd.isna(v):
         return 'N/A'
@@ -519,7 +528,7 @@ combined_kpis = '<div class="row">' + ''.join([
     kpi_card('Annual Spend', R(fl_combined['total_spend'])),
     kpi_card('Transactions', N(fl_combined['transactions'])),
     kpi_card('Avg Basket', R(fl_combined['avg_txn_value'])),
-    kpi_card('Spend / Customer', R(fl_combined['spend_per_customer']), 'per year'),
+    kpi_card('Spend / Customer', R_exact(fl_combined['spend_per_customer']), 'per year'),
     kpi_card('Avg Age', f"{demo['avg_age']}"),
 ]) + '</div>'
 
@@ -529,7 +538,7 @@ if fl_market_row is not None:
         kpi_card('Customers', N(fl_market_row['customers'])),
         kpi_card('Annual Spend', R(fl_market_row['total_spend'])),
         kpi_card('Avg Basket', R(fl_market_row['avg_txn_value'])),
-        kpi_card('Spend / Customer', R(fl_market_row['spend_per_customer'])),
+        kpi_card('Spend / Customer', R_exact(fl_market_row['spend_per_customer'])),
         kpi_card('Market Rank', f"#{int(fl_market_row['spend_rank'])}", 'in category'),
         kpi_card('Customer Reach', f"{fl_market_row['penetration_pct']:.1f}%", 'of grocery shoppers'),
     ]) + '</div>'
@@ -542,7 +551,7 @@ if fl_eatery_row is not None and int(fl_eatery_row['customers']) > 0:
         kpi_card('Customers', N(fl_eatery_row['customers'])),
         kpi_card('Annual Spend', R(fl_eatery_row['total_spend'])),
         kpi_card('Avg Basket', R(fl_eatery_row['avg_txn_value'])),
-        kpi_card('Spend / Customer', R(fl_eatery_row['spend_per_customer'])),
+        kpi_card('Spend / Customer', R_exact(fl_eatery_row['spend_per_customer'])),
         kpi_card('Transactions', N(fl_eatery_row['transactions'])),
     ]) + '</div>'
 else:
@@ -688,7 +697,7 @@ tr.fl td {{ background:#fef3c7; font-weight:600; }}
     kpi_card('Annual Spend', R(fl_combined['total_spend'])),
     kpi_card('Transactions', N(fl_combined['transactions'])),
     kpi_card('Avg Basket', R(fl_combined['avg_txn_value'])),
-    kpi_card('Spend / Customer', R(fl_combined['spend_per_customer'])),
+    kpi_card('Spend / Customer', R_exact(fl_combined['spend_per_customer'])),
 ])}
 </div>
 </div>
