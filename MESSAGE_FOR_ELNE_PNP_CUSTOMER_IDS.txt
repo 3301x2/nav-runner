@@ -1,0 +1,32 @@
+Hi Elne,
+
+Picking up the PnP Smart Shopper customer ID ticket from Lerato. Before I pull anything I want to make sure I hand you exactly what you need for the sales attribution overlay.
+
+Four quick questions:
+
+1. Audience source
+   Were the PnP Transact and Funeral campaigns activated using audience files we already have in BQ (like the Aspire and Vox files that were loaded via First Advertising) — or were they targeted a different way (e.g. constructed inside PnP Connect using PnP first-party data)?
+
+   If the audiences DO exist as files somewhere, could you point me at them? I can then load them into fmn-production-462014.staging.* and give you a clean table per campaign.
+
+   If they DON'T exist as files, I'll need the targeting logic (e.g. "PnP shoppers with income R13.5k+, 25-55") so I can construct the audiences from FNB card data.
+
+2. Campaign scope
+   The deck shows Funeral and Transact live from March through June. Should I include the all-up Awareness campaign that's coming online too, or only the two current ones?
+
+3. Time window
+   Do you want the exposed audience as of the campaign flight dates (matching what was actually pushed to media) — or the current best-match audience if we're reconstructing?
+
+4. Format
+   Simplest for me is to write three tables in fmn-production-462014.staging:
+     • pnp_transact_audience
+     • pnp_funeral_audience
+     • pnp_awareness_audience
+   Each with UNIQUE_ID as the join key against your sales data. You LEFT JOIN and measure lift. Does that match how you're planning to overlay, or do you need a different format (CSV, hashed IDs, LiveRamp segment)?
+
+Once I have answers to these I can turn it around quickly. Aiming for something usable by the Jul 10 due date.
+
+Thanks,
+Prosper
+
+CC: Zen Finlayson, Pierre Schroeder, Lerato Padi, Unarine Ratshiedana
