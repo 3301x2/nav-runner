@@ -383,6 +383,32 @@ acq_target = q(f"""
       AND g.grocery_spend >= 12000  -- reasonable annual grocery spend threshold
 """).iloc[0]
 
+# Switch opportunity — how much of the grocery category is NOT loyal to Food Lovers.
+# Per Suzanne: show the switch pool WITHOUT naming or breaking down by competitor.
+# Loyalty = has any Food Lovers transaction. Non-loyalists = everyone else who
+# shops groceries.
+switch = q(f"""
+    WITH grocery_customers AS (
+        SELECT
+            cs.UNIQUE_ID,
+            SUM(cs.dest_spend) AS grocery_spend
+        FROM `{PROJECT}.analytics.int_customer_category_spend` cs
+        WHERE cs.CATEGORY_TWO = 'Groceries'
+        GROUP BY cs.UNIQUE_ID
+    ),
+    fl_customers AS (
+        SELECT DISTINCT UNIQUE_ID
+        FROM `{PROJECT}.analytics.int_customer_category_spend`
+        WHERE UPPER(DESTINATION) IN ('FOOD LOVERS MARKET','FOOD LOVERS EATERY')
+    )
+    SELECT
+        (SELECT COUNT(DISTINCT UNIQUE_ID) FROM grocery_customers)                                       AS category_customers,
+        (SELECT ROUND(SUM(grocery_spend), 0) FROM grocery_customers)                                    AS category_spend,
+        (SELECT COUNT(*) FROM fl_customers)                                                             AS fl_customers,
+        (SELECT COUNT(DISTINCT UNIQUE_ID) FROM grocery_customers WHERE UNIQUE_ID NOT IN (SELECT UNIQUE_ID FROM fl_customers)) AS non_fl_customers,
+        (SELECT ROUND(SUM(grocery_spend), 0) FROM grocery_customers WHERE UNIQUE_ID NOT IN (SELECT UNIQUE_ID FROM fl_customers)) AS non_fl_spend
+""").iloc[0]
+
 # Spend attached to each segment — for the activation opportunity cards
 segment_spend = q(f"""
     WITH fl_activity AS (
@@ -811,16 +837,30 @@ Loyalists are 5× more valuable than casual shoppers. Every basket-share point y
 </div>
 </div>
 
+<div class='sec' style='background:linear-gradient(180deg,#fff7ed 0%,#fff 40%); border:2px solid #d97706'>
+<h2 style='color:#92400e'>Switch opportunity — the winnable ground</h2>
+<p class='sub'>The size of the grocery pool in FNB card data — and how much of it is not yet loyal to Food Lovers. No competitor breakdown, just the total addressable switch.</p>
+<div class='row'>
+{kpi_card('Category customers', N(switch['category_customers']), 'FNB grocery shoppers, 12mo')}
+{kpi_card('Food Lovers customers', N(switch['fl_customers']), f"{round(100 * int(switch['fl_customers']) / max(int(switch['category_customers']), 1), 1)}% of category")}
+{kpi_card('Non-FL customers', N(switch['non_fl_customers']), 'the switch pool')}
+{kpi_card('Non-FL grocery spend', R(switch['non_fl_spend']), 'currently going to other grocers')}
+</div>
+<div class='callout' style='margin-top:14px'>
+{round(100 * int(switch['non_fl_customers']) / max(int(switch['category_customers']), 1), 1)}% of FNB grocery shoppers currently spend nothing at Food Lovers. Winning even a small share of that spend represents meaningful category growth without losing existing loyalists.
+</div>
+</div>
+
 <div class='sec' style='background:linear-gradient(180deg,#eff6ff 0%,#fff 40%); border:2px solid #2E75B6'>
 <h2 style='color:#1e40af'>Aspirational acquisition target</h2>
-<p class='sub'>FNB cardholders who match your ideal shopper — young professionals, mid-to-upper income, active grocery spenders — <b>but who don't shop at Food Lovers yet</b>. This is who to steal from the premium chains.</p>
+<p class='sub'>FNB cardholders who match your ideal shopper — young professionals, mid-to-upper income, active grocery spenders — <b>but who don't shop at Food Lovers yet</b>. This is the aspirational cohort of the switch pool.</p>
 <div class='row'>
 {kpi_card('Prospects', N(acq_target['acq_customers']), '26–45, R23.5k+ income')}
 {kpi_card('Annual grocery spend', R(acq_target['acq_grocery_spend']), 'currently going elsewhere')}
 {kpi_card('Avg spend per prospect', R(int(acq_target['acq_grocery_spend']) / max(int(acq_target['acq_customers']), 1)))}
 </div>
 <div class='callout' style='margin-top:14px'>
-Winning even a small share of this pool means real growth. Position on "fresh-first at a better price than Woolworths" — that's the wedge that lands with this segment.
+Winning even a small share of this pool means real growth. Position on fresh-first at a better price — the wedge that lands with the aspirational-middle segment.
 </div>
 </div>
 
