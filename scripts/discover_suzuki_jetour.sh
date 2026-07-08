@@ -75,19 +75,24 @@ bq_q "
 
 echo
 echo "── 3. Value-Chinese SUV competitive set (Jetour proxy candidates) ──"
+echo "(matches only vehicle-related DESTINATIONs — excludes butcheries etc.)"
 bq_q "
     SELECT DESTINATION, CATEGORY_TWO,
            COUNT(DISTINCT UNIQUE_ID) AS customers,
            ROUND(SUM(dest_spend), 0) AS spend
     FROM \`$PROJECT.analytics.int_customer_category_spend\`
-    WHERE UPPER(DESTINATION) LIKE '%CHERY%'
-       OR UPPER(DESTINATION) LIKE '%HAVAL%'
-       OR UPPER(DESTINATION) LIKE '%GWM%'
-       OR UPPER(DESTINATION) LIKE '%MAHINDRA%'
-       OR UPPER(DESTINATION) LIKE '%OMODA%'
-       OR UPPER(DESTINATION) LIKE '%FAW%'
-       OR UPPER(DESTINATION) LIKE '%BAIC%'
-       OR UPPER(DESTINATION) LIKE '%JAECOO%'
+    WHERE (UPPER(CATEGORY_TWO) LIKE '%VEHICLE%'
+        OR UPPER(CATEGORY_TWO) LIKE '%MOTOR%'
+        OR UPPER(CATEGORY_TWO) LIKE '%DEALER%'
+        OR UPPER(CATEGORY_TWO) LIKE '%AUTO%')
+      AND (UPPER(DESTINATION) LIKE '%CHERY%'
+        OR UPPER(DESTINATION) LIKE '%HAVAL%'
+        OR UPPER(DESTINATION) LIKE '%GWM%'
+        OR UPPER(DESTINATION) LIKE '%MAHINDRA%'
+        OR UPPER(DESTINATION) LIKE '%OMODA%'
+        OR UPPER(DESTINATION) LIKE '%FAW%'
+        OR UPPER(DESTINATION) LIKE '%BAIC%'
+        OR UPPER(DESTINATION) LIKE '%JAECOO%')
     GROUP BY DESTINATION, CATEGORY_TWO
     ORDER BY customers DESC
     LIMIT 25
