@@ -839,7 +839,7 @@ Loyalists are 5× more valuable than casual shoppers. Every basket-share point y
 
 <div class='sec' style='background:linear-gradient(180deg,#fff7ed 0%,#fff 40%); border:2px solid #d97706'>
 <h2 style='color:#92400e'>Switch opportunity — the winnable ground</h2>
-<p class='sub'>The size of the grocery pool in FNB card data — and how much of it is not yet loyal to Food Lovers. No competitor breakdown, just the total addressable switch.</p>
+<p class='sub'>The size of the grocery pool in FNB card data — and how much of it is not yet loyal to Food Lovers.</p>
 <div class='row'>
 {kpi_card('Category customers', N(switch['category_customers']), 'FNB grocery shoppers, 12mo')}
 {kpi_card('Food Lovers customers', N(switch['fl_customers']), f"{round(100 * int(switch['fl_customers']) / max(int(switch['category_customers']), 1), 1)}% of category")}
