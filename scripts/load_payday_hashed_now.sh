@@ -75,7 +75,13 @@ fi
 
 
 # ── 5. Run the standard load-and-promote via the FB audience loader ─
+# IMPORTANT: force the stable table name `payday_pnp_meta_audience` so Rory's
+# LiveRamp connection keeps pointing at the same table every time we refresh.
+# Without this, each new file would auto-derive a different table name
+# (payday_pnp_hashed_meta_audience, then payday_pnp_v2_meta_audience, etc.)
+# and Rory would have to reconfigure LR for every drop.
 echo
-echo "── 5. Running sandbox load + prod promote ──"
+echo "── 5. Running sandbox load + prod promote (into stable table 'payday_pnp_meta_audience') ──"
 exec bash "$SCRIPT_DIR/load_fb_audience_all.sh" \
-    --source "$GCS_URI"
+    --source "$GCS_URI" \
+    --table payday_pnp_meta_audience
