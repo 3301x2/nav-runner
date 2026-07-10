@@ -15,5 +15,7 @@ set -uo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
+# Filename uses same casing convention as VOX_CONSENT_InclusionA_20260706_FB.csv:
+# lowercase brand prefix, capital I in Inclusion, capital A after it.
 exec bash "$SCRIPT_DIR/load_fb_audience_all.sh" \
-    --source gs://testing-sandbox-123/payday_pnp_inclusionA_20260709_FB.csv
+    --source gs://testing-sandbox-123/payday_pnp_InclusionA_20260709_FB.csv
