@@ -13,9 +13,19 @@ DATASET="staging"
 TABLE_NAME="vox_consent_inclusiona_meta_audience"
 TABLE_SQL="${PROJECT}.${DATASET}.${TABLE_NAME}"
 
+# Auto-refresh both user and ADC creds if either is dead
+if ! gcloud auth print-access-token >/dev/null 2>&1; then
+    echo "Auth token expired — re-logging in..."
+    gcloud auth login
+fi
+if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    echo "ADC token expired — re-logging in..."
+    gcloud auth application-default login
+fi
+
 bq_q() {
     bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" \
-        --format=pretty --max_rows=30 "$1" 2>/dev/null
+        --format=pretty --max_rows=30 "$1"
 }
 
 echo

@@ -10,6 +10,16 @@ PROJECT="fmn-production-462014"
 DATASET="staging"
 TABLE_NAME="vox_consent_inclusiona_meta_audience"
 
+# Auto-refresh both user and ADC creds if either is dead
+if ! gcloud auth print-access-token >/dev/null 2>&1; then
+    echo "Auth token expired — re-logging in..."
+    gcloud auth login
+fi
+if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    echo "ADC token expired — re-logging in..."
+    gcloud auth application-default login
+fi
+
 echo
 echo "════════════════════════════════════════════════════════════"
 echo "  Column names in $PROJECT.$DATASET.$TABLE_NAME"

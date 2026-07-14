@@ -17,6 +17,20 @@ echo "  Diagnostic — why bq queries return blank"
 echo "════════════════════════════════════════════════════════════"
 
 
+# ── Auto-reauth if either token is dead ────────────────────────────
+echo
+echo "── 0. Ensuring auth is fresh ──"
+if ! gcloud auth print-access-token >/dev/null 2>&1; then
+    echo "   User token dead — running: gcloud auth login"
+    gcloud auth login
+fi
+if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    echo "   ADC token dead — running: gcloud auth application-default login"
+    gcloud auth application-default login
+fi
+echo "   ✓ Auth ready"
+
+
 echo
 echo "── 1. Who am I authenticated as? ──"
 gcloud auth list
@@ -29,10 +43,8 @@ echo "── 2. Is my access token still valid? ──"
 if TOKEN=$(gcloud auth print-access-token 2>&1); then
     echo "   Token acquired (first 20 chars): ${TOKEN:0:20}..."
 else
-    echo "   ✗ FAILED to get token — this is your problem"
+    echo "   ✗ FAILED to get token"
     echo "   $TOKEN"
-    echo
-    echo "   Fix: gcloud auth login"
     exit 1
 fi
 
@@ -44,8 +56,6 @@ if ADC_TOKEN=$(gcloud auth application-default print-access-token 2>&1); then
 else
     echo "   ✗ FAILED to get ADC token"
     echo "   $ADC_TOKEN"
-    echo
-    echo "   Fix: gcloud auth application-default login"
 fi
 
 
