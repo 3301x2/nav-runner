@@ -27,13 +27,18 @@ case "$ENV" in
 esac
 
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
-    gcloud auth login --update-adc --quiet || exit 1
+    echo "Auth token expired — re-logging in..."
+    gcloud auth login
+fi
+if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    echo "ADC token expired — re-logging in..."
+    gcloud auth application-default login
 fi
 
 # Wide table — 200 char width, unlimited results but capped per section
 bq_q() {
     bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" \
-        --format=pretty --max_rows=25 "$1" 2>/dev/null
+        --format=pretty --max_rows=25 "$1"
 }
 
 echo

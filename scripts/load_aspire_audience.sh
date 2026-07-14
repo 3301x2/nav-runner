@@ -39,11 +39,16 @@ TABLE_CLI="${PROJECT}:staging.aspire_primelife_meta_audience"
 TABLE_SQL="${PROJECT}.staging.aspire_primelife_meta_audience"
 
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
-    gcloud auth login --update-adc --quiet || exit 1
+    echo "Auth token expired — re-logging in..."
+    gcloud auth login
+fi
+if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    echo "ADC token expired — re-logging in..."
+    gcloud auth application-default login
 fi
 
 bq_q() {
-    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --format=pretty --max_rows=50 "$1" 2>/dev/null
+    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --format=pretty --max_rows=50 "$1"
 }
 
 echo
