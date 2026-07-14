@@ -1,0 +1,9 @@
+Hi Pierre,
+
+Yes, the Vox file has cell numbers.
+
+- Total records: 132,809
+- Records with a cellphone number: 132,809 (100%)
+- Records with an email: 132,809 (100%)
+
+Quick note: distinct emails = 101,794, so we're looking at roughly 102k unique customers across the 132,809 records (some duplication on the email side).
