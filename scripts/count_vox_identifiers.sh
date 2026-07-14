@@ -1,17 +1,21 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
 # How many usable emails and phone numbers are in the Vox audience table?
-# Runs against the prod table (fmn-production-462014).
+# Shows the actual schema FIRST — the previous version assumed column names
+# that don't exist in this table (autodetect renamed them to string_field_0
+# etc.), which made every COUNTIF return garbage.
 # ─────────────────────────────────────────────────────────────────────────
 
 set -uo pipefail
 
 PROJECT="fmn-production-462014"
-TABLE_SQL="fmn-production-462014.staging.vox_consent_inclusiona_meta_audience"
+DATASET="staging"
+TABLE_NAME="vox_consent_inclusiona_meta_audience"
+TABLE_SQL="${PROJECT}.${DATASET}.${TABLE_NAME}"
 
 bq_q() {
     bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" \
-        --format=pretty --max_rows=20 "$1" 2>/dev/null
+        --format=pretty --max_rows=30 "$1" 2>/dev/null
 }
 
 echo
@@ -21,42 +25,50 @@ echo "  Table: $TABLE_SQL"
 echo "════════════════════════════════════════════════════════════"
 
 
+# ── 1. Show the actual schema first ──
 echo
-echo "── Total rows + identifier availability ──"
+echo "── 1. Actual column names in this table ──"
 bq_q "
-    SELECT
-        COUNT(*)                                                            AS total_rows,
-        COUNTIF(TRIM(COALESCE(email,  '')) != '')                            AS with_email,
-        COUNTIF(TRIM(COALESCE(email2, '')) != '')                            AS with_email2,
-        COUNTIF(TRIM(COALESCE(email3, '')) != '')                            AS with_email3,
-        COUNTIF(TRIM(COALESCE(phone,  '')) != '')                            AS with_phone,
-        COUNTIF(TRIM(COALESCE(phone2, '')) != '')                            AS with_phone2,
-        COUNTIF(TRIM(COALESCE(phone3, '')) != '')                            AS with_phone3
-    FROM \`$TABLE_SQL\`
+    SELECT column_name, data_type, ordinal_position
+    FROM \`${PROJECT}.${DATASET}.INFORMATION_SCHEMA.COLUMNS\`
+    WHERE table_name = '$TABLE_NAME'
+    ORDER BY ordinal_position
 "
 
 
+# ── 2. Row count (this always works) ──
 echo
-echo "── Distinct hashed identifiers (unique emails / phones) ──"
+echo "── 2. Total row count ──"
+bq_q "SELECT COUNT(*) AS total_rows FROM \`$TABLE_SQL\`"
+
+
+# ── 3. First 2 rows sample (see what values actually look like) ──
+echo
+echo "── 3. Sample of first 2 rows ──"
+bq_q "SELECT * FROM \`$TABLE_SQL\` LIMIT 2"
+
+
+# ── 4. Try the standard FB-schema counts (will error if columns differ) ──
+echo
+echo "── 4. Standard 18-col FB schema counts (may error) ──"
 bq_q "
     SELECT
-        COUNT(DISTINCT email)  AS distinct_emails,
-        COUNT(DISTINCT phone)  AS distinct_phones
+        COUNT(*)                                                  AS total_rows,
+        COUNTIF(TRIM(COALESCE(email,  '')) != '')                  AS with_email,
+        COUNTIF(TRIM(COALESCE(email2, '')) != '')                  AS with_email2,
+        COUNTIF(TRIM(COALESCE(email3, '')) != '')                  AS with_email3,
+        COUNTIF(TRIM(COALESCE(phone,  '')) != '')                  AS with_phone,
+        COUNTIF(TRIM(COALESCE(phone2, '')) != '')                  AS with_phone2,
+        COUNTIF(TRIM(COALESCE(phone3, '')) != '')                  AS with_phone3,
+        COUNT(DISTINCT email)                                     AS distinct_emails,
+        COUNT(DISTINCT phone)                                     AS distinct_phones
     FROM \`$TABLE_SQL\`
-    WHERE TRIM(COALESCE(email, '')) != '' OR TRIM(COALESCE(phone, '')) != ''
-"
+" || echo "   (query errored — the table doesn't have email/phone columns by those names; see Section 1)"
 
 
 echo
-echo "── Rows with at least one usable email or phone ──"
-bq_q "
-    SELECT
-        COUNT(*) AS rows_with_at_least_one_identifier
-    FROM \`$TABLE_SQL\`
-    WHERE TRIM(COALESCE(email,  '')) != ''
-       OR TRIM(COALESCE(email2, '')) != ''
-       OR TRIM(COALESCE(email3, '')) != ''
-       OR TRIM(COALESCE(phone,  '')) != ''
-       OR TRIM(COALESCE(phone2, '')) != ''
-       OR TRIM(COALESCE(phone3, '')) != ''
-"
+echo "════════════════════════════════════════════════════════════"
+echo "  If Section 4 errored, the table columns are named differently."
+echo "  Read Section 1 to see the actual column names, then Prosper"
+echo "  can update the count query to use those names."
+echo "════════════════════════════════════════════════════════════"
