@@ -18,7 +18,7 @@
 
 set -uo pipefail
 
-ENV="${1:-production}"
+ENV="${1:-sandbox}"
 case "$ENV" in
     sandbox|dev|sb)      PROJECT="fmn-sandbox"           ;;
     production|prod|prd) PROJECT="fmn-production-462014" ;;
