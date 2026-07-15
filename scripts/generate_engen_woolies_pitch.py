@@ -85,7 +85,12 @@ def esc(s) -> str:
 
 
 ENGEN_WHERE   = "UPPER(DESTINATION) LIKE '%ENGEN%'"
-WOOLIES_WHERE = "(UPPER(DESTINATION) LIKE '%WOOLWORTH%' OR UPPER(DESTINATION) LIKE '%WOOLIES%')"
+# Explicitly exclude WOOLIES MANDA HILL RENTALS (Zambian branch rental
+# receipts, unrelated to SA Woolworths retail activity).
+WOOLIES_WHERE = (
+  "(UPPER(DESTINATION) LIKE '%WOOLWORTH%' OR UPPER(DESTINATION) LIKE '%WOOLIES%') "
+  "AND UPPER(DESTINATION) <> 'WOOLIES MANDA HILL RENTALS'"
+)
 
 ENGEN_COLOR   = '#004b87'  # Engen navy
 WOOLIES_COLOR = '#00A651'  # Woolies green
@@ -591,14 +596,14 @@ top_2_segments_pct = round(sum(s['pct'] for s in segments[:2]), 1) if len(segmen
 
 html = f"""<!DOCTYPE html>
 <html lang='en'><head><meta charset='UTF-8'>
-<title>Engen and Woolworths, Partnership Audience Snapshot</title>
+<title>Engen, Audience Snapshot with Woolworths Partnership View</title>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0'></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 body {{ font-family:'DM Sans',sans-serif; background:#f8fafc; color:#1a202c; }}
-#hdr {{ background:linear-gradient(135deg,{ENGEN_COLOR},{WOOLIES_COLOR}); color:#fff; padding:28px 32px; }}
+#hdr {{ background:linear-gradient(135deg,#001a2c,{ENGEN_COLOR}); color:#fff; padding:28px 32px; }}
 #hdr h1 {{ font-size:1.9rem; font-weight:700; }}
 #hdr p {{ opacity:.92; font-size:1rem; margin-top:6px; }}
 #hdr .meta {{ font-size:.78rem; opacity:.65; margin-top:14px; }}
@@ -606,6 +611,10 @@ body {{ font-family:'DM Sans',sans-serif; background:#f8fafc; color:#1a202c; }}
 .sec {{ background:#fff; border-radius:14px; padding:26px 30px; margin:18px 0; border:1px solid #f1f5f9; box-shadow:0 1px 4px rgba(0,0,0,.04); }}
 .sec h2 {{ font-size:1.35rem; font-weight:700; color:#0f172a; margin-bottom:6px; }}
 .sec .sub {{ color:#64748b; font-size:.92rem; margin-bottom:18px; line-height:1.5; }}
+.hero-engen {{ background:linear-gradient(135deg,#e5eef7,#c6dcee); border:2px solid {ENGEN_COLOR}; }}
+.hero-engen h2 {{ color:#001a2c; }}
+.hero-engen .sub {{ color:#003a6b; }}
+.hero-engen .card {{ background:#eaf2fa; border-top-color:{ENGEN_COLOR}; }}
 .hero-partnership {{ background:linear-gradient(135deg,#fff7ed,#fed7aa); border:2px solid {SHARED_COLOR}; }}
 .hero-partnership h2 {{ color:#78350f; }}
 .hero-partnership .sub {{ color:#92400e; }}
@@ -656,16 +665,34 @@ tr.brand td {{ background:#fef3c7; font-weight:600; }}
 </head><body>
 
 <div id='hdr'>
-<h1>Engen and Woolworths, Partnership Audience Snapshot</h1>
-<p>FNB cardholder view of the shared Engen and Woolworths cohort, last 12 months.</p>
+<h1>Engen, Audience Snapshot</h1>
+<p>FNB cardholder activity at Engen, with a partnership view of the Engen and Woolworths shared cohort. Last 12 months.</p>
 <div class='meta'>Generated {esc(now)}</div>
 </div>
 
 <div class='ctn'>
 
+<div class='sec hero-engen'>
+<h2>Engen reach</h2>
+<p class='sub'>Distinct FNB cardholders active at Engen (fuel and convenience) in the last 12 months.</p>
+{engen_kpis}
+</div>
+
+<div class='sec'>
+<h2>Engen banner breakdown</h2>
+<p class='sub'>How the Engen audience splits across fuel and forecourt convenience. Customers active at both count once at the hero level and once per banner below.</p>
+<table><tr><th>Banner</th><th>Category</th><th>Customers</th><th>Transactions</th><th>Annual spend</th></tr>{engen_banner_rows}</table>
+</div>
+
+<div class='sec'>
+<h2>Where Engen sits in the fuel category</h2>
+<p class='sub'>Top fuel destinations in FNB card data, ranked by customer reach. Engen highlighted.</p>
+<table><tr><th>Retailer</th><th>Customers</th><th>Annual spend</th></tr>{fuel_rows}</table>
+</div>
+
 <div class='sec hero-partnership'>
-<h2>The partnership is already the story</h2>
-<p class='sub'>The Engen and Woolworths partnership is not a hypothesis. Most of each brand's FNB card base is already active at the other brand. This audience is the ready made proof point.</p>
+<h2>The Woolworths partnership is already live in the data</h2>
+<p class='sub'>Engen already has a footprint of Woolworths FoodStop concessions inside its filling stations. The FNB card data shows the partnership is not a hypothesis. The overlap between the two brands is already the majority behaviour of both audiences.</p>
 {partnership_kpis}
 <div class='callout' style='background:#fef3c7; border-left-color:{SHARED_COLOR}; color:#78350f'>
 <b>{overlap['pct_woolies_at_engen']:.0f}% of Woolworths customers already fuel at Engen. {overlap['pct_engen_at_woolies']:.0f}% of Engen customers already shop at Woolworths.</b> The FoodStop concession has a warm audience of over {N(overlap['shared_customers'])} people to build from.
@@ -674,46 +701,41 @@ tr.brand td {{ background:#fef3c7; font-weight:600; }}
 
 <div class='sec'>
 <h2>The three cohorts</h2>
-<p class='sub'>Every FNB cardholder who touched either brand in the last 12 months falls into one of three groups. The partnership plays are different for each.</p>
+<p class='sub'>Every FNB cardholder active at either brand in the last 12 months falls into one of three groups. The play is different for each.</p>
 {cohort_cards}
 </div>
 
 <div class='sec'>
 <h2>Shared cohort deep dive</h2>
-<p class='sub'>The 1.5M FNB cardholders active at both brands. Their spend at each brand is below.</p>
+<p class='sub'>The {N(overlap['shared_customers'])} FNB cardholders active at both brands. Their spend at each brand is below.</p>
 {shared_deep}
 <div class='callout' style='margin-top:14px'>
-The shared cohort spends <b>{R(combined_shared_spend)}</b> across the two brands per year, or <b>R{int((float(engen_shared['spend_per_customer'])+float(woolies_shared['spend_per_customer'])) / 1):,}</b> per customer per year on average. This is a high value, high frequency audience.
+The shared cohort spends <b>{R(combined_shared_spend)}</b> across the two brands per year, or <b>R{int(float(engen_shared['spend_per_customer'])+float(woolies_shared['spend_per_customer'])):,}</b> per customer per year on average. This is a high value, high frequency audience.
 </div>
 </div>
 
 <div class='sec'>
-<h2>Each brand on its own</h2>
-<p class='sub'>For context: the standalone reach of each brand in FNB card data.</p>
-<div class='two-col'>
-<div class='brand-card brand-engen'>
-<div class='brand-header'><span class='brand-badge engen'>ENGEN</span><h3>Engen, all banners</h3></div>
-{engen_kpis}
-</div>
+<h2>Woolworths context, the partner brand</h2>
+<p class='sub'>Standalone Woolworths reach in FNB card data. Provided as context for the partnership view above.</p>
 <div class='brand-card brand-woolies'>
 <div class='brand-header'><span class='brand-badge woolies'>WOOLWORTHS</span><h3>Woolworths, all banners</h3></div>
 {woolies_kpis}
 </div>
 </div>
-</div>
 
 <div class='sec'>
-<h2>Banner breakdown, Engen</h2>
-<table><tr><th>Banner</th><th>Category</th><th>Customers</th><th>Transactions</th><th>Annual spend</th></tr>{engen_banner_rows}</table>
-</div>
-
-<div class='sec'>
-<h2>Banner breakdown, Woolworths</h2>
+<h2>Woolworths banner breakdown</h2>
 <table><tr><th>Banner</th><th>Category</th><th>Customers</th><th>Transactions</th><th>Annual spend</th></tr>{woolies_banner_rows}</table>
 </div>
 
 <div class='sec'>
-<h2>Who they are, the shared cohort</h2>
+<h2>Where Woolworths sits in the grocery category</h2>
+<p class='sub'>Top grocery destinations in FNB card data, ranked by spend.</p>
+<table><tr><th>Retailer</th><th>Customers</th><th>Annual spend</th></tr>{grocery_rows}</table>
+</div>
+
+<div class='sec'>
+<h2>Who the shared cohort is</h2>
 <div class='row'>
 {demo_row}
 </div>
@@ -761,18 +783,6 @@ The shared cohort spends <b>{R(combined_shared_spend)}</b> across the two brands
 </div>
 
 <div class='sec'>
-<h2>Where Engen sits in the fuel category</h2>
-<p class='sub'>Top fuel destinations in FNB card data, ranked by customer reach.</p>
-<table><tr><th>Retailer</th><th>Customers</th><th>Annual spend</th></tr>{fuel_rows}</table>
-</div>
-
-<div class='sec'>
-<h2>Where Woolworths sits in the grocery category</h2>
-<p class='sub'>Top grocery destinations in FNB card data, ranked by spend.</p>
-<table><tr><th>Retailer</th><th>Customers</th><th>Annual spend</th></tr>{grocery_rows}</table>
-</div>
-
-<div class='sec'>
 <h2>Cross-shop, co-brand and bundling opportunities</h2>
 <p class='sub'>The top categories the shared cohort already spends in outside fuel and grocery. Natural targets for joint promotions and category expansion.</p>
 <table><tr><th>Category</th><th>Shoppers</th><th>Annual spend</th></tr>{cross_shop_rows}</table>
@@ -780,7 +790,7 @@ The shared cohort spends <b>{R(combined_shared_spend)}</b> across the two brands
 
 <div class='sec' style='background:#f8fafc; border:1px solid #e2e8f0;'>
 <h2>Scope and timeframe</h2>
-<p class='sub'>This view combines all Engen DESTINATIONs (Engen fuel and Engen Convenience Store) with all Woolworths DESTINATIONs. The shared cohort is the set of FNB cardholders active at both brands in the same 12 month window.</p>
+<p class='sub'>Engen figures combine every Engen DESTINATION in FNB card data (fuel and convenience). Woolworths figures combine every Woolworths retail DESTINATION (grocery and food), excluding Woolies Manda Hill Rentals which is an unrelated non-retail line. The shared cohort is the set of FNB cardholders active at both brands in the same 12 month window.</p>
 <p class='timeframe'>{timeframe_text}</p>
 </div>
 
