@@ -289,6 +289,13 @@ def kpi_card(label: str, value: str, sub: str = '') -> str:
 
 now = datetime.now().strftime('%d %B %Y')
 
+if trend:
+  first_month = str(trend[0]['month'])
+  last_month  = str(trend[-1]['month'])
+  timeframe_text = f'Transactions cover the 12 months from {first_month} to {last_month}.'
+else:
+  timeframe_text = 'Transactions cover the last 12 months.'
+
 # Trend narrative
 trend_narrative = ''
 if len(trend) >= 3:
@@ -335,7 +342,7 @@ activation_cards = ''.join([
    <h3>Champions &amp; Loyal High Value</h3>
    <div class="act-size">{N(protect_pool)}</div>
    <div class="act-money">{R(protect_spend)} annual spend at stake</div>
-   <div class="act-desc">Your highest-value online shoppers - the digital-first consumers who default to Takealot for anything from tech to household. Retention plays: TakealotMore/PlusOne perks, early access to sales, curated recommendations across categories they already spend in.</div>
+   <div class="act-desc">Your highest value online shoppers. The digital-first consumers who default to Takealot for anything from tech to household. Retention plays: TakealotMore/PlusOne perks, early access to sales, curated recommendations across categories they already spend in.</div>
   </div>''',
   f'''<div class="act-card act-grow">
    <div class="act-badge">GROW</div>
@@ -388,7 +395,7 @@ for r in cross_shop_retail:
 
 html = f"""<!DOCTYPE html>
 <html lang='en'><head><meta charset='UTF-8'>
-<title>{BRAND_NAME} - Audience Snapshot</title>
+<title>{BRAND_NAME}, Audience Snapshot</title>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0'></script>
 <style>
@@ -420,6 +427,7 @@ body {{ font-family:'DM Sans',sans-serif; background:#f8fafc; color:#1a202c; }}
 table {{ width:100%; border-collapse:collapse; margin:12px 0; font-size:.86rem; }}
 th {{ background:#001a2c; color:#fff; padding:10px 12px; text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }}
 td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
+.timeframe {{ font-size:.82rem; color:#64748b; margin-top:10px; font-style:italic; }}
 .act-row {{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }}
 @media(max-width:850px) {{ .act-row {{ grid-template-columns:1fr; }} }}
 .act-card {{ background:#fff; border-radius:12px; padding:20px 22px; border:2px solid #f1f5f9; position:relative; }}
@@ -439,7 +447,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 </head><body>
 
 <div id='hdr'>
-<h1>{BRAND_NAME} - Audience Snapshot</h1>
+<h1>{BRAND_NAME}, Audience Snapshot</h1>
 <p>FNB cardholder activity at {BRAND_NAME}, last 12 months</p>
 <div class='meta'>Generated {esc(now)}</div>
 </div>
@@ -448,7 +456,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec hero'>
 <h2>The reach story</h2>
-<p class='sub'>Distinct FNB cardholders shopping at {BRAND_NAME} in the last 12 months - a real, addressable audience of digitally active South African consumers.</p>
+<p class='sub'>Distinct FNB cardholders shopping at {BRAND_NAME} in the last 12 months. A real, addressable audience of digitally active South African consumers.</p>
 {hero_kpis}
 </div>
 
@@ -456,17 +464,17 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 <h2>Customer quality</h2>
 <p class='sub'>{BRAND_NAME} customers clustered by FNB's behavioural segmentation model. Segments reflect FNB-wide activity, not {BRAND_NAME}-specific.</p>
 <div class='callout'>
-<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments</b> - evidence that your platform pulls in the same shoppers driving premium retail activity across the FNB ecosystem.
+<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments.</b> Your platform pulls in the same shoppers driving premium retail activity across the FNB ecosystem.
 </div>
 <div class='two-col'>
 <div class='chbox'><canvas id='chSegments'></canvas></div>
 <div style='font-size:.88rem;line-height:1.6;color:#334155'>
 <h3 style='font-size:1rem;color:#0f172a;margin-bottom:8px'>What the segments mean</h3>
-<p><b style='color:#16a34a'>Loyal High Value</b> - consistently high spenders with strong recency. Top of the funnel.</p>
-<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions</b> - highest lifetime value; broad category spread and frequent transactions.</p>
-<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier</b> - reliable regulars with moderate but stable spend patterns.</p>
-<p style='margin-top:8px'><b style='color:#e11d48'>Dormant</b> - previously active but low recent engagement - re-activation opportunity.</p>
-<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk</b> - spend and frequency declining - win-back campaign candidates.</p>
+<p><b style='color:#16a34a'>Loyal High Value.</b> Consistently high spenders with strong recency. Top of the funnel.</p>
+<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions.</b> Highest lifetime value, broad category spread, frequent transactions.</p>
+<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier.</b> Reliable regulars with moderate but stable spend patterns.</p>
+<p style='margin-top:8px'><b style='color:#e11d48'>Dormant.</b> Previously active but low recent engagement. Re-activation opportunity.</p>
+<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk.</b> Spend and frequency declining. Win-back campaign candidates.</p>
 </div>
 </div>
 </div>
@@ -492,7 +500,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec'>
 <h2>Geographic footprint</h2>
-<p class='sub'>Total {BRAND_NAME} spend by province - where the audience lives.</p>
+<p class='sub'>Total {BRAND_NAME} spend by province. Where the audience lives.</p>
 <div class='chbox tall'><canvas id='chGeo'></canvas></div>
 </div>
 
@@ -505,7 +513,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec'>
 <h2>Activation opportunities</h2>
-<p class='sub'>The audience isn't monolithic - it's three distinct pools, each with a different play, and a real spend number attached.</p>
+<p class='sub'>The audience is three distinct pools. Each has a different play, and a real spend number attached.</p>
 <div class='act-row'>
 {activation_cards}
 </div>
@@ -513,17 +521,23 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec' style='background:linear-gradient(180deg,#eff9fd 0%,#fff 40%); border:2px solid {BRAND_COLOR}'>
 <h2 style='color:#003a55'>Cross-shop with mainstream retail</h2>
-<p class='sub'>{BRAND_NAME} customers are not "digital-only" - they are South Africa's mainstream retail spender. Below: overlap between {BRAND_NAME} customers and the biggest physical-retail destinations in FNB card data.</p>
+<p class='sub'>{BRAND_NAME} customers are not "digital-only". They are South Africa's mainstream retail spender. Below is the overlap between {BRAND_NAME} customers and the biggest physical retail destinations in FNB card data.</p>
 <table><tr><th>Retailer</th><th>Overlapping Customers</th><th>% of {BRAND_NAME} audience</th><th>Their spend at that retailer</th></tr>{retail_rows}</table>
 <div class='callout' style='margin-top:14px'>
-This overlap is the pitch: {BRAND_NAME} lets a brand reach the same aspirational shoppers who fill supermarket, apparel and department-store baskets - but with digital-native intent and buying context.
+This overlap is the pitch. {BRAND_NAME} lets a brand reach the same aspirational shoppers who fill supermarket, apparel and department store baskets, with digital-native intent and buying context.
 </div>
 </div>
 
 <div class='sec'>
-<h2>Adjacent spend - bundling &amp; co-brand opportunities</h2>
+<h2>Adjacent spend, bundling and co-brand opportunities</h2>
 <p class='sub'>The top non-{BRAND_NAME} categories your customers already spend in. Useful for bundle offers, co-brand partnerships, and channel targeting.</p>
 <table><tr><th>Category</th><th>Shoppers</th><th>Annual spend</th></tr>{cross_shop_rows}</table>
+</div>
+
+<div class='sec' style='background:#f8fafc; border:1px solid #e2e8f0;'>
+<h2>Scope and timeframe</h2>
+<p class='sub'>This view covers a single destination (DESTINATION = "TAKEALOT", CATEGORY_TWO = "General Shopping").</p>
+<p class='timeframe'>{timeframe_text}</p>
 </div>
 
 </div>

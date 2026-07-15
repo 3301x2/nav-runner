@@ -125,6 +125,7 @@ print(' ✓ Validation passed')
 banners = q(f"""
   SELECT
     DESTINATION AS banner,
+    ANY_VALUE(CATEGORY_TWO)  AS category,
     COUNT(DISTINCT UNIQUE_ID) AS customers,
     SUM(dest_txn_count)    AS transactions,
     ROUND(SUM(dest_spend), 0) AS total_spend,
@@ -364,7 +365,7 @@ activation_cards = ''.join([
    <h3>Champions &amp; Loyal High Value</h3>
    <div class="act-size">{N(protect_pool)}</div>
    <div class="act-money">{R(protect_spend)} annual spend at stake</div>
-   <div class="act-desc">Your highest-value customers - the Smart Shopper base that treats {BRAND_NAME} as a one-stop household. Retention plays: Smart Shopper multi-format perks (grocery + clothing + pharmacy in one journey), premium range access, priority for on-demand ASAP delivery slots.</div>
+   <div class="act-desc">Your highest value customers. The Smart Shopper base that treats {BRAND_NAME} as a one-stop household. Retention plays: Smart Shopper multi-format perks (grocery, clothing, pharmacy in one journey), premium range access, priority for on-demand ASAP delivery slots.</div>
   </div>''',
   f'''<div class="act-card act-grow">
    <div class="act-badge">GROW</div>
@@ -406,6 +407,36 @@ for r in banners:
     <div><span class="l">Avg Basket</span> {R(r['avg_txn_value'])}</div>
    </div>
   </div>'''
+
+# Breakdown tie-out table: proves the hero total is the sum of the banners
+group_total_spend = sum(float(r['total_spend']) for r in banners)
+group_total_txns  = sum(int(r['transactions']) for r in banners)
+breakdown_rows = ''
+for r in banners:
+  pct = round(100.0 * float(r['total_spend']) / max(group_total_spend, 1), 1)
+  breakdown_rows += (
+    f'<tr><td>{esc(r["banner"])}</td>'
+    f'<td>{esc(r["category"])}</td>'
+    f'<td>{N(r["customers"])}</td>'
+    f'<td>{N(r["transactions"])}</td>'
+    f'<td>{R(r["total_spend"])}</td>'
+    f'<td>{pct}%</td></tr>'
+  )
+breakdown_rows += (
+  f'<tr class="tot"><td><b>Group total</b></td><td></td>'
+  f'<td><b>{N(hero["customers"])}</b> (deduped)</td>'
+  f'<td><b>{N(group_total_txns)}</b></td>'
+  f'<td><b>{R(group_total_spend)}</b></td>'
+  f'<td><b>100.0%</b></td></tr>'
+)
+
+# Timeframe footer, computed from the trend query (12 months of monthly rows)
+if trend:
+  first_month = str(trend[0]['month'])
+  last_month  = str(trend[-1]['month'])
+  timeframe_text = f'Transactions cover the 12 months from {first_month} to {last_month}.'
+else:
+  timeframe_text = 'Transactions cover the last 12 months.'
 
 total_gender = int(demo['male']) + int(demo['female'])
 demo_row = ''.join([
@@ -463,6 +494,8 @@ body {{ font-family:'DM Sans',sans-serif; background:#f8fafc; color:#1a202c; }}
 table {{ width:100%; border-collapse:collapse; margin:12px 0; font-size:.86rem; }}
 th {{ background:#003a6b; color:#fff; padding:10px 12px; text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }}
 td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
+tr.tot td {{ background:#eef7fd; border-top:2px solid {BRAND_COLOR}; font-size:.92rem; }}
+.timeframe {{ font-size:.82rem; color:#64748b; margin-top:10px; font-style:italic; }}
 .banner-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }}
 @media(max-width:800px) {{ .banner-grid {{ grid-template-columns:1fr; }} }}
 .banner-card {{ background:#f8fafc; border-radius:10px; padding:14px 18px; }}
@@ -497,13 +530,13 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec hero'>
 <h2>The Group reach story</h2>
-<p class='sub'>Distinct FNB cardholders who touched any {BRAND_NAME} banner - Market, Express, ASAP, Clothing, Save, Liquor, Pharmacy, VAS, or Travel - in the last 12 months. A multi-format retail relationship, not just a supermarket footprint.</p>
+<p class='sub'>Distinct FNB cardholders who touched any {BRAND_NAME} banner in the last 12 months. This includes Market, Express, ASAP, Clothing, Save, Liquor, Pharmacy, VAS and Travel. A multi-format retail relationship, not just a supermarket footprint.</p>
 {hero_kpis}
 </div>
 
 <div class='sec'>
 <h2>How the audience splits across banners</h2>
-<p class='sub'>Each banner's individual footprint. Customers who shop multiple banners appear in more than one row - the hero above is the deduplicated unique-customer total.</p>
+<p class='sub'>Each banner's individual footprint. Customers who shop multiple banners appear in more than one row. The hero above is the deduplicated unique customer total.</p>
 <div class='banner-grid'>
 {banner_cards}
 </div>
@@ -511,7 +544,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec' style='background:linear-gradient(180deg,#fefce8 0%,#fff 40%); border:2px solid #eab308'>
 <h2 style='color:#713f12'>Multi-format engagement</h2>
-<p class='sub'>How many {BRAND_NAME} banners the average customer touches. Multi-format engagement is the moat - every extra banner deepens the relationship.</p>
+<p class='sub'>How many {BRAND_NAME} banners the average customer touches. Multi-format engagement is the moat. Every extra banner deepens the relationship.</p>
 <div class='row'>
 {kpi_card('Single-banner', N(data_obj['multi_format']['one']), f"{round(100 * data_obj['multi_format']['one'] / max(mf_total, 1), 1)}% of audience")}
 {kpi_card('Two banners', N(data_obj['multi_format']['two']))}
@@ -520,7 +553,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 {kpi_card('Avg banners / customer', f"{data_obj['multi_format']['avg']:.2f}")}
 </div>
 <div class='callout' style='margin-top:14px'>
-<b>{mf_multi_pct}% of {BRAND_NAME} customers shop across two or more banners</b> - the multi-format retailer story. Every single-banner customer converted to multi-format grows lifetime value dramatically.
+<b>{mf_multi_pct}% of {BRAND_NAME} customers shop across two or more banners.</b> Every single-banner customer converted to multi-format grows lifetime value dramatically.
 </div>
 </div>
 
@@ -528,17 +561,17 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 <h2>Customer quality</h2>
 <p class='sub'>{BRAND_NAME} customers clustered by FNB's behavioural segmentation model. Segments reflect FNB-wide activity, not {BRAND_NAME}-specific.</p>
 <div class='callout'>
-<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments</b> - the same shoppers driving premium retail activity across the ecosystem.
+<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments.</b> These are the same shoppers driving premium retail activity across the ecosystem.
 </div>
 <div class='two-col'>
 <div class='chbox'><canvas id='chSegments'></canvas></div>
 <div style='font-size:.88rem;line-height:1.6;color:#334155'>
 <h3 style='font-size:1rem;color:#0f172a;margin-bottom:8px'>What the segments mean</h3>
-<p><b style='color:#16a34a'>Loyal High Value</b> - consistently high spenders with strong recency.</p>
-<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions</b> - highest lifetime value; broad category spread and frequent transactions.</p>
-<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier</b> - reliable regulars with moderate but stable spend patterns.</p>
-<p style='margin-top:8px'><b style='color:#e11d48'>Dormant</b> - previously active but low recent engagement - re-activation opportunity.</p>
-<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk</b> - spend and frequency declining - win-back campaign candidates.</p>
+<p><b style='color:#16a34a'>Loyal High Value.</b> Consistently high spenders with strong recency.</p>
+<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions.</b> Highest lifetime value, broad category spread, frequent transactions.</p>
+<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier.</b> Reliable regulars with moderate but stable spend patterns.</p>
+<p style='margin-top:8px'><b style='color:#e11d48'>Dormant.</b> Previously active but low recent engagement. Re-activation opportunity.</p>
+<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk.</b> Spend and frequency declining. Win-back campaign candidates.</p>
 </div>
 </div>
 </div>
@@ -574,14 +607,14 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div class='sec'>
 <h2>Activation opportunities</h2>
-<p class='sub'>The audience isn't monolithic - it's three distinct pools, each with a different play, and a real spend number attached.</p>
+<p class='sub'>The audience is three distinct pools. Each has a different play, and a real spend number attached.</p>
 <div class='act-row'>
 {activation_cards}
 </div>
 </div>
 
 <div class='sec' style='background:linear-gradient(180deg,#fff7ed 0%,#fff 40%); border:2px solid #d97706'>
-<h2 style='color:#92400e'>Switch opportunity - the winnable ground</h2>
+<h2 style='color:#92400e'>Switch opportunity, the winnable ground</h2>
 <p class='sub'>The size of the grocery pool in FNB card data, and how much of it is not yet reached by any {BRAND_NAME} banner.</p>
 <div class='row'>
 {kpi_card('Category customers', N(switch['category_customers']), 'FNB grocery shoppers, 12mo')}
@@ -590,14 +623,24 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 {kpi_card('Non-PnP grocery spend', R(switch['non_pnp_spend']), 'currently going elsewhere')}
 </div>
 <div class='callout' style='margin-top:14px'>
-{round(100 * int(switch['non_pnp_customers']) / max(int(switch['category_customers']), 1), 1)}% of FNB grocery shoppers currently spend nothing at any {BRAND_NAME} banner. Winning even a small share of that spend represents meaningful group growth - and multi-format is your unique wedge.
+{round(100 * int(switch['non_pnp_customers']) / max(int(switch['category_customers']), 1), 1)}% of FNB grocery shoppers currently spend nothing at any {BRAND_NAME} banner. Winning even a small share of that spend represents meaningful group growth. Multi-format is your unique wedge.
 </div>
 </div>
 
 <div class='sec'>
-<h2>Adjacent spend - bundling &amp; co-brand opportunities</h2>
+<h2>Adjacent spend, bundling and co-brand opportunities</h2>
 <p class='sub'>The top categories your customers already spend in outside {BRAND_NAME}'s own formats. Useful for bundle offers, co-brand partnerships, and channel targeting.</p>
 <table><tr><th>Category</th><th>Shoppers</th><th>Annual spend</th></tr>{cross_shop_rows}</table>
+</div>
+
+<div class='sec'>
+<h2>Group total, banner-by-banner tie-out</h2>
+<p class='sub'>The Group hero at the top is the sum of the banner rows below. Customer counts do not sum because shoppers who use multiple banners are counted once at Group level and once per banner.</p>
+<table>
+<tr><th>Banner</th><th>Category</th><th>Customers</th><th>Transactions</th><th>Annual spend</th><th>Share of Group</th></tr>
+{breakdown_rows}
+</table>
+<p class='timeframe'>{timeframe_text}</p>
 </div>
 
 </div>

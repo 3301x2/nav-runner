@@ -272,6 +272,13 @@ def kpi_card(label, value, sub=''):
 
 now = datetime.now().strftime('%d %B %Y')
 
+if trend:
+  first_month = str(trend[0]['month'])
+  last_month  = str(trend[-1]['month'])
+  timeframe_text = f'Transactions cover the 12 months from {first_month} to {last_month}.'
+else:
+  timeframe_text = 'Transactions cover the last 12 months.'
+
 trend_narrative = ''
 if len(trend) >= 3:
   first_half = trend[:len(trend)//2]
@@ -314,7 +321,7 @@ activation_cards = ''.join([
    <h3>Champions &amp; Loyal High Value</h3>
    <div class="act-size">{N(protect_pool)}</div>
    <div class="act-money">{R(protect_spend)} annual spend at stake</div>
-   <div class="act-desc">Your highest-value grocery shoppers - the Smart Shopper base that keeps a full trolley at {BRAND_NAME} week after week. Retention plays: enhanced Smart Shopper rewards, personalised category offers, priority for premium ranges (PnP Live Well, Finest).</div>
+   <div class="act-desc">Your highest value grocery shoppers. The Smart Shopper base that keeps a full trolley at {BRAND_NAME} week after week. Retention plays: enhanced Smart Shopper rewards, personalised category offers, priority for premium ranges (PnP Live Well, Finest).</div>
   </div>''',
   f'''<div class="act-card act-grow">
    <div class="act-badge">GROW</div>
@@ -370,7 +377,7 @@ for r in cross_shop:
 
 html = f"""<!DOCTYPE html>
 <html lang='en'><head><meta charset='UTF-8'>
-<title>{BRAND_NAME} - Audience Snapshot</title>
+<title>{BRAND_NAME}, Audience Snapshot</title>
 <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0'></script>
 <style>
@@ -403,6 +410,7 @@ table {{ width:100%; border-collapse:collapse; margin:12px 0; font-size:.86rem; 
 th {{ background:#003a6b; color:#fff; padding:10px 12px; text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }}
 td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
+.timeframe {{ font-size:.82rem; color:#64748b; margin-top:10px; font-style:italic; }}
 .act-row {{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }}
 @media(max-width:850px) {{ .act-row {{ grid-template-columns:1fr; }} }}
 .act-card {{ background:#fff; border-radius:12px; padding:20px 22px; border:2px solid #f1f5f9; position:relative; }}
@@ -422,7 +430,7 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 </head><body>
 
 <div id='hdr'>
-<h1>{BRAND_NAME} - Audience Snapshot</h1>
+<h1>{BRAND_NAME}, Audience Snapshot</h1>
 <p>FNB cardholder activity at {BRAND_NAME} (flagship supermarket), last 12 months</p>
 <div class='meta'>Generated {esc(now)}</div>
 </div>
@@ -431,7 +439,7 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 
 <div class='sec hero'>
 <h2>The reach story</h2>
-<p class='sub'>Distinct FNB cardholders shopping at {BRAND_NAME}'s flagship banner in the last 12 months - the largest single grocery banner in FNB's card base.</p>
+<p class='sub'>Distinct FNB cardholders shopping at {BRAND_NAME}'s flagship banner in the last 12 months. The largest single grocery banner in FNB's card base.</p>
 {hero_kpis}
 </div>
 
@@ -456,17 +464,17 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 <h2>Customer quality</h2>
 <p class='sub'>{BRAND_NAME} customers clustered by FNB's behavioural segmentation model. Segments reflect FNB-wide activity, not {BRAND_NAME}-specific.</p>
 <div class='callout'>
-<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments</b> - evidence that your flagship pulls in the same shoppers driving premium retail activity across the FNB ecosystem.
+<b>{top_2_segments_pct}% of {BRAND_NAME} customers are in FNB's two highest-value segments.</b> Your flagship pulls in the same shoppers driving premium retail activity across the FNB ecosystem.
 </div>
 <div class='two-col'>
 <div class='chbox'><canvas id='chSegments'></canvas></div>
 <div style='font-size:.88rem;line-height:1.6;color:#334155'>
 <h3 style='font-size:1rem;color:#0f172a;margin-bottom:8px'>What the segments mean</h3>
-<p><b style='color:#16a34a'>Loyal High Value</b> - consistently high spenders with strong recency. Top of the funnel.</p>
-<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions</b> - highest lifetime value; broad category spread and frequent transactions.</p>
-<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier</b> - reliable regulars with moderate but stable spend patterns.</p>
-<p style='margin-top:8px'><b style='color:#e11d48'>Dormant</b> - previously active but low recent engagement - re-activation opportunity.</p>
-<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk</b> - spend and frequency declining - win-back campaign candidates.</p>
+<p><b style='color:#16a34a'>Loyal High Value.</b> Consistently high spenders with strong recency. Top of the funnel.</p>
+<p style='margin-top:8px'><b style='color:{BRAND_COLOR}'>Champions.</b> Highest lifetime value, broad category spread, frequent transactions.</p>
+<p style='margin-top:8px'><b style='color:#f59e0b'>Steady Mid-Tier.</b> Reliable regulars with moderate but stable spend patterns.</p>
+<p style='margin-top:8px'><b style='color:#e11d48'>Dormant.</b> Previously active but low recent engagement. Re-activation opportunity.</p>
+<p style='margin-top:8px'><b style='color:#94a3b8'>At Risk.</b> Spend and frequency declining. Win-back campaign candidates.</p>
 </div>
 </div>
 </div>
@@ -491,7 +499,7 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 
 <div class='sec'>
 <h2>Geographic footprint</h2>
-<p class='sub'>Total {BRAND_NAME} spend by province - where the audience lives.</p>
+<p class='sub'>Total {BRAND_NAME} spend by province. Where the audience lives.</p>
 <div class='chbox tall'><canvas id='chGeo'></canvas></div>
 </div>
 
@@ -503,7 +511,7 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 
 <div class='sec'>
 <h2>Activation opportunities</h2>
-<p class='sub'>The audience isn't monolithic - it's three distinct pools, each with a different play, and a real spend number attached.</p>
+<p class='sub'>The audience is three distinct pools. Each has a different play, and a real spend number attached.</p>
 <div class='act-row'>
 {activation_cards}
 </div>
@@ -511,7 +519,7 @@ tr.pnp td {{ background:#e0f0fa; font-weight:600; }}
 
 <div class='sec' style='background:linear-gradient(180deg,#f0fdf4 0%,#fff 40%); border:2px solid #16a34a'>
 <h2 style='color:#166534'>Your loyalists</h2>
-<p class='sub'>Customers where <b>60%+ of their grocery basket</b> is spent at {BRAND_NAME} - the ones who chose you as their weekly default. This is your brand's armour.</p>
+<p class='sub'>Customers where <b>60%+ of their grocery basket</b> is spent at {BRAND_NAME}. The ones who chose you as their weekly default. This is your brand's armour.</p>
 <div class='row'>
 {kpi_card('Loyalist customers', N(loyalist['loyalist_customers']))}
 {kpi_card('Annual spend from loyalists', R(loyalist['loyalist_spend']))}
@@ -524,8 +532,8 @@ Loyalists are 5× more valuable than casual shoppers. Every basket-share point y
 </div>
 
 <div class='sec' style='background:linear-gradient(180deg,#fff7ed 0%,#fff 40%); border:2px solid #d97706'>
-<h2 style='color:#92400e'>Switch opportunity - the winnable ground</h2>
-<p class='sub'>The size of the grocery pool in FNB card data - and how much of it is not yet loyal to {BRAND_NAME}.</p>
+<h2 style='color:#92400e'>Switch opportunity, the winnable ground</h2>
+<p class='sub'>The size of the grocery pool in FNB card data, and how much of it is not yet loyal to {BRAND_NAME}.</p>
 <div class='row'>
 {kpi_card('Category customers', N(switch['category_customers']), 'FNB grocery shoppers, 12mo')}
 {kpi_card(f'{BRAND_NAME} customers', N(switch['pnp_customers']), f"{round(100 * int(switch['pnp_customers']) / max(int(switch['category_customers']), 1), 1)}% of category")}
@@ -538,9 +546,15 @@ Loyalists are 5× more valuable than casual shoppers. Every basket-share point y
 </div>
 
 <div class='sec'>
-<h2>Adjacent spend - bundling &amp; co-brand opportunities</h2>
+<h2>Adjacent spend, bundling and co-brand opportunities</h2>
 <p class='sub'>The top non-grocery categories your customers already spend in. Useful for bundle offers, co-brand partnerships, and channel targeting.</p>
 <table><tr><th>Category</th><th>Shoppers</th><th>Annual spend</th></tr>{cross_shop_rows}</table>
+</div>
+
+<div class='sec' style='background:#f8fafc; border:1px solid #e2e8f0;'>
+<h2>Scope and timeframe</h2>
+<p class='sub'>This view covers the flagship {BRAND_NAME} banner only (DESTINATION = "PICK N PAY", CATEGORY_TWO = "Groceries"). It excludes Express, ASAP, Clothing, Save, Liquor, Pharmacy, VAS and Travel. For the multi-format Group view combining all nine banners, see the {BRAND_NAME} Group pitch.</p>
+<p class='timeframe'>{timeframe_text}</p>
 </div>
 
 </div>
