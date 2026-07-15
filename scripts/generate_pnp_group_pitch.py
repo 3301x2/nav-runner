@@ -245,6 +245,24 @@ segment_spend = q(f"""
   GROUP BY co.segment_name
 """).to_dict('records')
 
+# Per-banner share of wallet: for each banner, what % of the CATEGORY spend
+# each PnP customer allocates to that banner. Pulled from the marts benchmarks
+# table which already computes avg_share_of_wallet per (DESTINATION, CATEGORY).
+wallet_share = q(f"""
+  SELECT
+    DESTINATION           AS banner,
+    CATEGORY_TWO          AS category,
+    customers,
+    ROUND(total_spend, 0) AS total_spend,
+    ROUND(market_share_pct, 1) AS category_share_pct,
+    ROUND(penetration_pct, 1)  AS category_reach_pct,
+    ROUND(avg_share_of_wallet, 1) AS wallet_share_pct,
+    spend_rank
+  FROM `{PROJECT}.marts.mart_destination_benchmarks`
+  WHERE UPPER(DESTINATION) IN ({PNP_DESTS_SQL})
+  ORDER BY total_spend DESC
+""").to_dict('records')
+
 # Multi-format engagement - how many banners the average customer touches
 multi_format = q(f"""
   WITH cust_banners AS (
@@ -430,6 +448,18 @@ breakdown_rows += (
   f'<td><b>100.0%</b></td></tr>'
 )
 
+# Wallet-share rows: one line per banner with its category context
+wallet_share_rows = ''
+for r in wallet_share:
+  wallet_share_rows += (
+    f'<tr><td>{esc(r["banner"])}</td>'
+    f'<td>{esc(r["category"])}</td>'
+    f'<td>{r["wallet_share_pct"]}%</td>'
+    f'<td>{r["category_reach_pct"]}%</td>'
+    f'<td>{r["category_share_pct"]}%</td>'
+    f'<td>#{int(r["spend_rank"])}</td></tr>'
+  )
+
 # Timeframe footer, computed from the trend query (12 months of monthly rows)
 if trend:
   first_month = str(trend[0]['month'])
@@ -554,6 +584,18 @@ tr.tot td {{ background:#eef7fd; border-top:2px solid {BRAND_COLOR}; font-size:.
 </div>
 <div class='callout' style='margin-top:14px'>
 <b>{mf_multi_pct}% of {BRAND_NAME} customers shop across two or more banners.</b> Every single-banner customer converted to multi-format grows lifetime value dramatically.
+</div>
+</div>
+
+<div class='sec'>
+<h2>Share of wallet within each banner's category</h2>
+<p class='sub'>For each banner: the average share of the CATEGORY basket that a {BRAND_NAME} customer allocates to that banner. Wallet Share answers "of every Rand a customer spends in Groceries (or Clothing, Liquor, etc.), what percentage lands here?" Ranking is within that same category.</p>
+<table>
+<tr><th>Banner</th><th>Category</th><th>Wallet Share</th><th>Customer Reach</th><th>Category Share</th><th>Rank in category</th></tr>
+{wallet_share_rows}
+</table>
+<div class='callout' style='margin-top:14px'>
+Wallet Share is the loyalty metric. It tells you how much of a category basket a banner already owns per customer. Growing Wallet Share compounds faster than acquiring new customers.
 </div>
 </div>
 

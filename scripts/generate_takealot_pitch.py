@@ -97,6 +97,19 @@ hero = q(f"""
   WHERE UPPER(DESTINATION) = '{DEST}'
 """).iloc[0]
 
+# Category benchmarks (rank, wallet share, category share)
+takealot_bench = q(f"""
+  SELECT
+    CATEGORY_TWO,
+    ROUND(market_share_pct, 1)       AS category_share_pct,
+    ROUND(penetration_pct, 1)        AS category_reach_pct,
+    ROUND(avg_share_of_wallet, 1)    AS wallet_share_pct,
+    spend_rank
+  FROM `{PROJECT}.marts.mart_destination_benchmarks`
+  WHERE UPPER(DESTINATION) = '{DEST}'
+""")
+tbench = takealot_bench.iloc[0] if not takealot_bench.empty else None
+
 # Demographics
 demo = q(f"""
   WITH custs AS (
@@ -458,6 +471,20 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 <h2>The reach story</h2>
 <p class='sub'>Distinct FNB cardholders shopping at {BRAND_NAME} in the last 12 months. A real, addressable audience of digitally active South African consumers.</p>
 {hero_kpis}
+</div>
+
+<div class='sec'>
+<h2>Category positioning</h2>
+<p class='sub'>Where {BRAND_NAME} sits in the {esc(tbench['CATEGORY_TWO']) if tbench is not None else 'General Shopping'} category by FNB cardholder spend, plus the wallet-share view: what percentage of the average {BRAND_NAME} customer's category basket lands here.</p>
+<div class='row'>
+{f'''{kpi_card('Category Rank', f"#{int(tbench['spend_rank'])}", f"in {tbench['CATEGORY_TWO']}")}
+     {kpi_card('Category Share', f"{tbench['category_share_pct']}%", 'by spend')}
+     {kpi_card('Customer Reach', f"{tbench['category_reach_pct']}%", 'of category shoppers')}
+     {kpi_card('Wallet Share', f"{tbench['wallet_share_pct']}%", 'of category basket')}''' if tbench is not None else ''}
+</div>
+<div class='callout' style='margin-top:14px'>
+Wallet Share is the loyalty metric. It tells you how much of a customer's category basket already lands with {BRAND_NAME}. Growing Wallet Share compounds faster than acquiring net-new customers.
+</div>
 </div>
 
 <div class='sec'>

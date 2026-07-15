@@ -124,6 +124,20 @@ engen_banners = q(f"""
   ORDER BY total_spend DESC
 """).to_dict('records')
 
+# ── Engen wallet share by banner (fuel vs convenience) ───────────────────
+engen_wallet = q(f"""
+  SELECT
+    DESTINATION           AS banner,
+    CATEGORY_TWO          AS category,
+    ROUND(market_share_pct, 1)    AS category_share_pct,
+    ROUND(penetration_pct, 1)     AS category_reach_pct,
+    ROUND(avg_share_of_wallet, 1) AS wallet_share_pct,
+    spend_rank
+  FROM `{PROJECT}.marts.mart_destination_benchmarks`
+  WHERE {ENGEN_WHERE}
+  ORDER BY spend_rank
+""").to_dict('records')
+
 # ── Woolworths totals ────────────────────────────────────────────────────
 woolies = q(f"""
   SELECT
@@ -554,6 +568,16 @@ for r in engen_banners:
                         f'<td>{N(r["customers"])}</td>'
                         f'<td>{N(r["transactions"])}</td>'
                         f'<td>{R(r["total_spend"])}</td></tr>')
+engen_wallet_rows = ''
+for r in engen_wallet:
+  engen_wallet_rows += (
+    f'<tr><td>{esc(r["banner"])}</td>'
+    f'<td>{esc(r["category"])}</td>'
+    f'<td>{r["wallet_share_pct"]}%</td>'
+    f'<td>{r["category_reach_pct"]}%</td>'
+    f'<td>{r["category_share_pct"]}%</td>'
+    f'<td>#{int(r["spend_rank"])}</td></tr>'
+  )
 woolies_banner_rows = ''
 for r in woolies_banners:
   woolies_banner_rows += (f'<tr><td>{esc(r["banner"])}</td>'
@@ -688,6 +712,18 @@ tr.brand td {{ background:#fef3c7; font-weight:600; }}
 <h2>Where Engen sits in the fuel category</h2>
 <p class='sub'>Top fuel destinations in FNB card data, ranked by customer reach. Engen highlighted.</p>
 <table><tr><th>Retailer</th><th>Customers</th><th>Annual spend</th></tr>{fuel_rows}</table>
+</div>
+
+<div class='sec'>
+<h2>Engen wallet share by banner</h2>
+<p class='sub'>For each Engen banner: the average share of the CATEGORY basket that an Engen customer allocates to that banner. Wallet Share answers "of every Rand a customer spends in Fuel (or Convenience Store), what percentage lands at Engen?" Ranking is within that same category.</p>
+<table>
+<tr><th>Banner</th><th>Category</th><th>Wallet Share</th><th>Customer Reach</th><th>Category Share</th><th>Rank in category</th></tr>
+{engen_wallet_rows}
+</table>
+<div class='callout' style='margin-top:14px'>
+Wallet Share is the loyalty metric. It tells you how much of a customer's category basket already lands with Engen per visit. Growing Wallet Share compounds faster than acquiring net-new customers.
+</div>
 </div>
 
 <div class='sec hero-partnership'>

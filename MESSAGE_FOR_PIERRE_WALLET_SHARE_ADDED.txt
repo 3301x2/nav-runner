@@ -1,0 +1,19 @@
+Hi Pierre
+
+On the wallet share within category, I have added it to all four pitches so it is consistent going forward.
+
+PnP Group: new "Share of wallet within each banner's category" section. One row per banner (Market, Express, ASAP, Clothing, Save, Liquor, Pharmacy, VAS, Travel) showing Wallet Share, Customer Reach, Category Share and Rank in category.
+
+PnP Flagship: already had Wallet Share as a KPI in the Category positioning section (22.3% of grocery basket).
+
+Takealot: added a Category positioning section with Rank, Category Share, Customer Reach and Wallet Share for General Shopping.
+
+Engen and Woolies partnership: added an Engen wallet share by banner section covering both Fuel and Convenience Store.
+
+Regenerate on your side to see them:
+cd nav-runner && git pull
+python3 scripts/generate_pnp_group_pitch.py
+python3 scripts/generate_takealot_pitch.py
+python3 scripts/generate_engen_woolies_pitch.py
+
+Let me know if the wording of the callout on Wallet Share reads right or if you want it removed.
