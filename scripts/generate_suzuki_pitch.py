@@ -14,6 +14,8 @@ import html as _h
 import json
 import subprocess
 import sys
+import warnings
+warnings.filterwarnings('ignore', message='.*BigQuery Storage.*')
 from datetime import datetime
 
 
@@ -21,6 +23,7 @@ REQUIRED = {
     'pandas':                'pandas',
     'db_dtypes':             'db-dtypes',
     'google.cloud.bigquery': 'google-cloud-bigquery',
+  'google.cloud.bigquery_storage': 'google-cloud-bigquery-storage',
 }
 missing = []
 for mod, pip_name in REQUIRED.items():
