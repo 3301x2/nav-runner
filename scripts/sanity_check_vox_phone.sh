@@ -29,7 +29,7 @@ if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
 fi
 
 bq_q() {
-    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --format=pretty --max_rows=30 "$1"
+    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --location=africa-south1 --format=pretty --max_rows=30 "$1"
 }
 
 TABLE="\`$PROJECT.staging.vox_consent_inclusiona_meta_audience\`"

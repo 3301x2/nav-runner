@@ -36,6 +36,7 @@ fi
 
 bq_q() {
     bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" \
+        --location=africa-south1 \
         --format=pretty --max_rows=25 "$1"
 }
 

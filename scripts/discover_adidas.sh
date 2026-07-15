@@ -36,7 +36,7 @@ if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
 fi
 
 bq_q() {
-    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --format=pretty --max_rows=40 "$1"
+    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --location=africa-south1 --format=pretty --max_rows=40 "$1"
 }
 
 echo

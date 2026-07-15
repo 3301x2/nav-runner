@@ -37,7 +37,7 @@ fi
 
 # Wide table — 200 char width, unlimited results but capped per section
 bq_q() {
-    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" \
+    bq query --quiet --use_legacy_sql=false --project_id="$PROJECT" --location=africa-south1 \
         --format=pretty --max_rows=25 "$1"
 }
 
