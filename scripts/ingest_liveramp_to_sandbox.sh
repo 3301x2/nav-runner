@@ -72,11 +72,14 @@ echo "  (each unique question type becomes one table lr_out_<question>)"
 # Filename patterns seen:
 #   <QuestionName>_YYYY-MM-DD_HH-MM-SS.(csv|parquet)
 #   Extract_DDMMYYYY_YYYY-MM-DD_HH-MM-SS.parquet
+# macOS BSD sed handles alternation via \| in extended mode inconsistently,
+# so we strip the extension first, then strip the trailing timestamp.
 uniq_qs=$(gcloud storage ls --recursive "gs://liveramp_output/**" 2>/dev/null \
     | grep -Ei '\.(csv|parquet)$' \
     | awk -F'/' '{print $NF}' \
-    | sed -E 's|_2026-[0-9]+-[0-9]+_[0-9]+-[0-9]+-[0-9]+\.(csv|parquet)$||' \
-    | sed -E 's|_[0-9]{8}$||' \
+    | sed -E 's/\.csv$//; s/\.parquet$//' \
+    | sed -E 's/_2026-[0-9]+-[0-9]+_[0-9]+-[0-9]+-[0-9]+$//' \
+    | sed -E 's/_[0-9]{8}$//' \
     | sort -u)
 
 for q in $uniq_qs; do
@@ -122,8 +125,8 @@ aud_files=$(gcloud storage ls --recursive "gs://picknpay_audience_uploads/**" 2>
     | grep -Ei '\.(csv|parquet)$')
 
 for src in $aud_files; do
-    fname=$(basename "$src" | sed -E 's|\.(csv|parquet)$||')
-    tbl="aud_$(echo "$fname" | tr '[:upper:]' '[:lower:]' | sed -E 's|[^a-z0-9_]+|_|g' | sed -E 's|^_+||;s|_+$||')"
+    fname=$(basename "$src" | sed -E 's/\.csv$//; s/\.parquet$//')
+    tbl="aud_$(echo "$fname" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_]+/_/g' | sed -E 's/^_+//; s/_+$//')"
     ext="${src##*.}"
     fmt="CSV"; [ "$ext" = "parquet" ] && fmt="PARQUET"
 
