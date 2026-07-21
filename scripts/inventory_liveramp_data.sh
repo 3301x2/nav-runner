@@ -53,19 +53,21 @@ echo "════════════════════════�
 
 
 # ── 1. PicknPay tables + row counts (via INFORMATION_SCHEMA, africa-south1 safe)
+# Africa-south1 INFORMATION_SCHEMA.PARTITIONS uses `total_rows`, not `row_count`.
+# We also fall back to a per-table COUNT(*) if partition metadata is empty.
 echo
 echo "[1/8] PicknPay tables + row counts →  00_tables.txt"
 bq_q_pretty "
     SELECT
         t.table_name,
-        p.row_count,
+        p.total_rows,
         ROUND(p.total_logical_bytes / 1024 / 1024, 1) AS size_mb,
         t.creation_time,
         t.table_type
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
     LEFT JOIN (
         SELECT table_name,
-               SUM(row_count) AS row_count,
+               SUM(total_rows) AS total_rows,
                SUM(total_logical_bytes) AS total_logical_bytes
         FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\`
         GROUP BY table_name
@@ -94,12 +96,12 @@ top_tables_csv=$(bq_q_csv "
     SELECT t.table_name
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
     LEFT JOIN (
-        SELECT table_name, SUM(row_count) AS row_count
+        SELECT table_name, SUM(total_rows) AS total_rows
         FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\`
         GROUP BY table_name
     ) p USING (table_name)
     WHERE t.table_type = 'BASE TABLE'
-    ORDER BY p.row_count DESC NULLS LAST
+    ORDER BY p.total_rows DESC NULLS LAST
     LIMIT 5
 " 2>/dev/null | tail -n +2)
 
@@ -163,29 +165,58 @@ gcloud storage ls --recursive "gs://picknpay_audience_uploads/**" 2>/dev/null \
 # ── Consolidated summary
 echo
 echo "Writing summary → 08_summary.txt"
+# Robust table/column counters: use INFORMATION_SCHEMA directly instead of
+# fighting the ASCII table formatting from bq --format=pretty.
+n_tables=$(bq_q_csv "
+    SELECT COUNT(*) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\`
+    WHERE table_type = 'BASE TABLE'
+" 2>/dev/null | tail -1 | tr -d '\r ')
+n_columns=$(bq_q_csv "
+    SELECT COUNT(*) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.COLUMNS\`
+" 2>/dev/null | tail -1 | tr -d '\r ')
+table_list=$(bq_q_csv "
+    SELECT table_name
+    FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\`
+    WHERE table_type = 'BASE TABLE'
+    ORDER BY table_name
+" 2>/dev/null | tail -n +2)
+
 {
     echo "═══════════════════════════════════════════════════════"
     echo "  LiveRamp inventory summary"
     echo "  Generated $(date '+%Y-%m-%d %H:%M:%S')"
     echo "═══════════════════════════════════════════════════════"
     echo
-    echo "── PicknPay tables in $PROD.PicknPay ──"
-    grep -E '^\| [A-Za-z_]+ ' "$OUT/00_tables.txt" | head -30 || echo "  (see 00_tables.txt)"
+    echo "── PicknPay tables in $PROD.PicknPay (${n_tables:-?} tables) ──"
+    echo "$table_list" | sed 's/^/  /'
     echo
-    echo "── Total tables: $(grep -cE '^\| [A-Za-z_]+ ' "$OUT/00_tables.txt")"
-    echo "── Total columns across all tables: $(grep -cE '^\| [A-Za-z_]+ .* \| [A-Z0-9]+ ' "$OUT/01_schemas.txt")"
+    echo "── Total columns across all tables: ${n_columns:-?}"
     echo
     echo "── LR output partitions: $(wc -l < "$OUT/03_lr_partitions.txt") date folders"
-    echo "── LR output files: $(wc -l < "$OUT/04_lr_all_files.txt") total"
+    echo "── LR output files:      $(wc -l < "$OUT/04_lr_all_files.txt") total"
     echo "── LR unique filename patterns: $(wc -l < "$OUT/05_lr_file_types.txt")"
     echo
-    echo "── Unique LR question output types (top 20):"
-    head -20 "$OUT/05_lr_file_types.txt" | sed 's/^/  /'
+    echo "── Unique LR question output types:"
+    sed 's/^/  /' "$OUT/05_lr_file_types.txt"
     echo
-    echo "── Audience-upload bucket contents:"
-    wc -l < "$OUT/07_audience_uploads.txt" | awk '{print "  " $1 " files"}'
-    head -20 "$OUT/07_audience_uploads.txt" | sed 's/^/  /'
+    echo "── Audience-upload bucket ($(wc -l < "$OUT/07_audience_uploads.txt") files):"
+    sed 's/^/  /' "$OUT/07_audience_uploads.txt"
 } > "$OUT/08_summary.txt"
+
+# Also copy summary + all inventory files into the nav-runner repo so you
+# can push them and I can read them via git.
+INV_REPO="$HOME/Documents/nav_latest/nav-runner/lr_inventory"
+if [ -d "$HOME/Documents/nav_latest/nav-runner" ]; then
+    mkdir -p "$INV_REPO"
+    cp -R "$OUT/"*.txt "$INV_REPO/" 2>/dev/null
+    cp -R "$OUT/02_samples" "$INV_REPO/" 2>/dev/null
+    # Don't commit the CSV previews (they may contain PII, even hashed).
+    # Only the .preview.txt sidecars, which are the head + row count.
+    mkdir -p "$INV_REPO/06_lr_previews"
+    cp "$OUT/06_lr_previews/"*.preview.txt "$INV_REPO/06_lr_previews/" 2>/dev/null
+    echo
+    echo "  Also copied to $INV_REPO/  (for git push, so Prosper's assistant can read)"
+fi
 
 
 echo

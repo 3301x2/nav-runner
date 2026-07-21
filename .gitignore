@@ -1,0 +1,16 @@
+# Never commit raw data pulled from LiveRamp or GCS, even if hashed.
+lr_inventory/06_lr_previews/*.csv
+lr_inventory/06_lr_previews/*.parquet
+lr_inventory/06_lr_previews/*.json
+# Never commit sample-row dumps that might contain PII.
+lr_inventory/02_samples/*.csv
+# Generated pitch outputs (regenerated on demand).
+*.html
+!scripts/**/*.html
+# Python caches.
+__pycache__/
+*.pyc
+.venv/
+venv/
+# macOS junk.
+.DS_Store
