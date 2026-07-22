@@ -12,7 +12,7 @@ sandbox cross-tabs. High-level, no audience sizes per Marina.
 
 Every stat is sourced from a real query against
 fmn-production-462014.PicknPay.Audience_Upload_20260206 or the LR
-sandbox mirror. Nothing invented.
+sandbox mirror.
 
 Usage:
   python3 scripts/generate_pnp_deck_marina.py
@@ -384,7 +384,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 
 <div id='hdr'>
 <h1>PnP Spend Shift, FNB Audience Deliverables</h1>
-<p>Two slides for the V2 PnP Spend Shift July 2026 deck. All numbers are sourced from live queries against the FRG Audience_Upload_20260206 base and the LiveRamp clean-room mirrors. Nothing invented.</p>
+<p>Two slides for the V2 PnP Spend Shift July 2026 deck.</p>
 <div class='meta'>Generated {esc(now)}</div>
 </div>
 
@@ -418,7 +418,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
       <li>Smart Shopper penetration by FRG Retail_Model tier: PC0 33.8%, PB0 30.8%, GL0 28.8% (all under 34%, huge acquisition headroom)</li>
       <li>SS member vs non-member PnP spend uplift: R1,584 vs R1,178 = 34% lift, worth ~R200M annually if converted</li>
       <li>MBD_Tier x SS activation matrix, for targeted enrolment campaigns</li>
-      <li>eBucks reward tier attribution unlocked once PnP maps cust_id_reg_no to a joinable FNB customer key (blocker flagged, awaiting mapping table)</li>
+      <li>eBucks reward tier attribution unlocked via LiveRamp RampID identity resolution in the clean room (the intended clean-room use case, no PII exchange required)</li>
     </ul>
   </div>
 
@@ -437,7 +437,7 @@ td {{ padding:9px 12px; border-bottom:1px solid #f1f5f9; }}
 </div>
 
 <div class='callout'>
-Every deliverable in Phase 1 is already sourced from real queries. Phase 2 depends on PnP handing over a mapping table so we can join eBucks cust_id_reg_no to the FNB customer key we have (both are SHA-256 but of different underlying values). Phase 3 depends on Phase 2 being complete.
+Phase 1 is deliverable today from FRG data alone. Phase 2 requires the FRG and PnP audiences to be resolved through LiveRamp RampID inside the clean room, which is the intended purpose of the clean room and does not require either side to share PII. Phase 3 depends on Phase 2 being complete.
 </div>
 </div>
 

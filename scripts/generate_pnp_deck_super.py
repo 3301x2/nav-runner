@@ -138,7 +138,7 @@ Primary and Lapsed tiers match to within <b>0.6 percentage points</b>. Two indep
 {kpi('PnP-active', '1.34M', '58.7% of the FRG base')}
 {kpi('PnP total spend', 'R3.08B', 'annualised, this base only')}
 {kpi('Avg wallet share', '11.4%', 'of grocery-adjacent spend')}
-{kpi('vs PnP 9M SS base', '~15%', 'FRG is the top slice of PnP\\'s active base')}
+{kpi('vs PnP 9M SS base', '~15%', "FRG is the top slice of PnP's active base")}
 </div>
 <div class='callout'>
 Our 2.29M FRG-active-at-PnP is roughly <b>15% of PnP's 9M active Smart Shoppers</b>. That's a large enough sample to segment properly. Small enough that behavioural signal survives without diluting.
@@ -268,7 +268,7 @@ The bottom two buckets (Lapsed + Under 5%) hold <b>R13.2B in grocery spend that 
 </div>
 
 <div class='callout warn'>
-<b>Named blocker:</b> the eBucks tables key on cust_id_reg_no, our FRG tables key on UNIQUE_ID/EMAIL_ADDR. Both are 64-char SHA-256 hashes but of different underlying values (0 rows overlap on direct join). To attribute PnP behaviour by eBucks reward tier we need PnP to hand over a mapping table (SA_ID to FNB customer key, hashed the same way as FRG). This is a request, not a blocker to the FRG-only unlocks above.
+<b>Named blocker:</b> the eBucks tables key on cust_id_reg_no, our FRG tables key on UNIQUE_ID/EMAIL_ADDR. Both are 64-char SHA-256 hashes but of different underlying values (0 rows overlap on direct join). Two independent businesses will never share a common customer identifier, which is exactly why the LiveRamp clean room exists. To attribute PnP behaviour by eBucks reward tier we need to run the join inside the LR clean room using RampID identity resolution, or rehash both sides against a normalised email + phone. This is what Phase 2 of the roadmap solves.
 </div>
 
 <div class='callout'>
@@ -278,8 +278,8 @@ Once the mapping exists, we can quote: "PWU customers are 89% WLH tier and spend
 </div>
 
 <div class='sec'>
-<div class='tag'>THREE GAPS PNP\\'S OWN SLIDES DID NOT CLOSE</div>
-<h2>Where PnP\\'s narrative stops and ours starts</h2>
+<div class='tag'>THREE GAPS PNP DID NOT CLOSE</div>
+<h2>Where PnP narrative stops and ours starts</h2>
 
 <div class='gap-card'>
 <h3>Gap 1: Reactivation target is a count, not a targetable list</h3>
@@ -350,7 +350,7 @@ Once the mapping exists, we can quote: "PWU customers are 89% WLH tier and spend
 </div>
 
 <div class='callout critical'>
-<b>2. eBucks reward tier cannot yet be attributed to FRG customers.</b> The eBucks tables key on cust_id_reg_no (hashed differently). Fix: PnP data team to share the mapping table linking cust_id_reg_no to the FRG customer key.
+<b>2. eBucks reward tier cannot yet be attributed to FRG customers.</b> The eBucks tables key on cust_id_reg_no (hashed differently). Fix: use LiveRamp RampID identity resolution inside the clean room, or standardise both sides on normalised email + phone hash. Not something PnP can hand us as a mapping file.
 </div>
 
 <div class='callout critical'>
@@ -368,12 +368,12 @@ Once the mapping exists, we can quote: "PWU customers are 89% WLH tier and spend
 
 <div class='sec' style='background:#0f172a;color:#fff'>
 <div class='tag gold'>THE ASK</div>
-<h2 style='color:#fff'>To move from Phase 1 to Phase 2, we need one thing from PnP</h2>
+<h2 style='color:#fff'>To move from Phase 1 to Phase 2, run the joins inside the clean room</h2>
 <p style='color:#fbbf24;font-size:1.1rem;margin-top:8px;line-height:1.5'>
-The mapping table linking eBucks cust_id_reg_no to the FRG customer key (both hashed the same way).
+Enable LiveRamp RampID identity resolution on both FRG and PnP-side audiences, or standardise both sides on the same normalised email + phone hashing recipe.
 </p>
 <p style='color:#e2e8f0;margin-top:14px;font-size:.95rem;line-height:1.6'>
-With that single mapping, unlocks 6, gap 1, gap 2, and gap 3 above resolve simultaneously. Every subsequent analysis becomes eBucks-tier-attributable and campaign-attribution-ready. Without it, Phase 1 is what we can deliver today.
+Two independent businesses will never share a common customer identifier by design. LiveRamp is the shared identity layer that lets us join without either side handing over PII. Once enabled, unlocks 6, gap 1, gap 2 and gap 3 above resolve simultaneously. Every subsequent analysis becomes eBucks-tier-attributable and campaign-attribution-ready. Without it, Phase 1 is what we can deliver today.
 </p>
 </div>
 
