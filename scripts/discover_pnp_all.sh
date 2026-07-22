@@ -1,16 +1,15 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
-# ONE script that does everything needed for the Tuesday PnP unlock deck.
+# ONE script, everything for the Tuesday PnP unlock deck.
 #
-# Combines:
-#   - LR mirror inventory + schemas + samples
-#   - Cross-source verification of PnP slide claims vs our FRG data
-#   - Full sweep of every prod dataset for loyalty/reward/partner signal
-#   - Hunt for the missing eBucks x SmartShopper LR output
-#   - Join-key discovery: FRG x every LR audience overlap counts
-#   - Segment mix INSIDE each LR audience (the killer deck stats)
+# v2 fixes:
+#   - ROWS reserved-word bug in A2/A3 (alias as n_rows)
+#   - Hash normalization diagnostic: check if LR uses lowercase-first, phone
+#     as identifier, salted hash, etc.
+#   - Adds inventory + schema + sample of the 3 eBucks prod tables
+#   - Overlap uses LOWER() on both sides in case that's the fix
 #
-# Read-only everywhere. Screenshot-friendly output (compact tables).
+# Read-only everywhere. Screenshot-friendly.
 #
 # Usage:
 #   bash scripts/discover_pnp_all.sh
@@ -19,11 +18,9 @@
 set -uo pipefail
 
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
-    echo "Auth token expired, re-logging in..."
     gcloud auth login
 fi
 if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
-    echo "ADC token expired, re-logging in..."
     gcloud auth application-default login
 fi
 
@@ -47,20 +44,19 @@ hdr() {
     echo "════════════════════════════════════════════════════════════"
 }
 
-
-hdr "PnP UNLOCK DECK, one-shot discovery"
+hdr "PnP UNLOCK DECK v2, one-shot discovery"
 
 
 # ═════════════════════════════════════════════════════════════════════
-# PART A: DATASET INVENTORY (what we have to work with)
+# PART A: DATASET INVENTORY (fixed ROWS bug)
 # ═════════════════════════════════════════════════════════════════════
 
 hdr "A1. Every prod dataset with table count"
 for ds in Adidas ETL_DEV Metropolitan PicknPay demographics_customer \
           demographics_fld demographics_mb staging; do
-    tables=$(bq --project_id="$PROD" --location=africa-south1 \
+    n=$(bq --project_id="$PROD" --location=africa-south1 \
         ls --max_results=200 "$PROD:$ds" 2>/dev/null | tail -n +3 | wc -l | tr -d ' ')
-    echo "  $ds: $tables tables"
+    echo "  $ds: $n tables"
 done
 
 
@@ -68,10 +64,10 @@ hdr "A2. Prod PicknPay tables + row counts"
 bq_prod "
     SELECT t.table_name,
            (SELECT SUM(total_rows) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\` p
-            WHERE p.table_name = t.table_name) AS rows
+            WHERE p.table_name = t.table_name) AS n_rows
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
     WHERE table_type = 'BASE TABLE'
-    ORDER BY rows DESC NULLS LAST
+    ORDER BY n_rows DESC NULLS LAST
 "
 
 
@@ -79,18 +75,18 @@ hdr "A3. LR mirrors in sandbox (pnp_liveramp) + row counts"
 bq_sb "
     SELECT t.table_name,
            (SELECT SUM(total_rows) FROM \`$SB.pnp_liveramp.INFORMATION_SCHEMA.PARTITIONS\` p
-            WHERE p.table_name = t.table_name) AS rows
+            WHERE p.table_name = t.table_name) AS n_rows
     FROM \`$SB.pnp_liveramp.INFORMATION_SCHEMA.TABLES\` t
     WHERE table_type = 'BASE TABLE'
-    ORDER BY rows DESC NULLS LAST
+    ORDER BY n_rows DESC NULLS LAST
 "
 
 
 # ═════════════════════════════════════════════════════════════════════
-# PART B: VERIFY PNP SLIDE CLAIMS AGAINST OUR DATA
+# PART B: VERIFY PNP SLIDE CLAIMS
 # ═════════════════════════════════════════════════════════════════════
 
-hdr "B1. VERIFY: PnP slide 5 pyramid (13.6/21.5/22.5/41.9) vs our FRG buckets"
+hdr "B1. VERIFY: PnP slide 5 pyramid vs our FRG buckets"
 bq_prod "
     WITH bucketed AS (
         SELECT CASE
@@ -99,48 +95,41 @@ bq_prod "
             WHEN SAFE_DIVIDE(val_pnp_trns, val_tot_trns) < 0.30 THEN '2. Secondary proxy: 10-30%'
             ELSE                                                     '1. Primary proxy: 30%+'
         END AS pnp_bucket
-        FROM $FRG
-        WHERE val_tot_trns > 0
+        FROM $FRG WHERE val_tot_trns > 0
     )
-    SELECT pnp_bucket,
-           COUNT(*) AS customers,
+    SELECT pnp_bucket, COUNT(*) AS customers,
            ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct_of_frg
-    FROM bucketed
-    GROUP BY pnp_bucket
-    ORDER BY pnp_bucket
+    FROM bucketed GROUP BY pnp_bucket ORDER BY pnp_bucket
 "
 
 
-hdr "B2. VERIFY: FRG reach vs PnP 20.6M/9M SS base"
+hdr "B2. VERIFY: FRG reach"
 bq_prod "
-    SELECT COUNT(*)                    AS frg_customers,
-           COUNTIF(nr_pnp_trns > 0)    AS pnp_active_in_frg,
+    SELECT COUNT(*) AS frg_customers,
+           COUNTIF(nr_pnp_trns > 0) AS pnp_active_in_frg,
            ROUND(100.0 * COUNTIF(nr_pnp_trns > 0) / COUNT(*), 1) AS pct_active
     FROM $FRG
 "
 
 
 # ═════════════════════════════════════════════════════════════════════
-# PART C: FRG CROSS-TABS (proves segment-level story)
+# PART C: FRG CROSS-TABS (already validated, keep for completeness)
 # ═════════════════════════════════════════════════════════════════════
 
-hdr "C1. Retail_Model x PnP (who spends most, wallet share)"
+hdr "C1. Retail_Model x PnP behaviour"
 bq_prod "
-    SELECT Retail_Model,
-           COUNT(*) AS customers,
+    SELECT Retail_Model, COUNT(*) AS customers,
            COUNTIF(nr_pnp_trns > 0) AS pnp_active,
            ROUND(100.0 * COUNTIF(nr_pnp_trns > 0) / COUNT(*), 1) AS active_pct,
            ROUND(AVG(val_pnp_trns), 0) AS avg_pnp_spend,
            ROUND(AVG(SAFE_DIVIDE(val_pnp_trns, val_tot_trns)) * 100, 1) AS avg_wallet_pct,
-           ROUND(SUM(val_pnp_trns) / 1e6, 1) AS total_pnp_spend_m
-    FROM $FRG
-    WHERE val_tot_trns > 0
-    GROUP BY Retail_Model
-    ORDER BY total_pnp_spend_m DESC
+           ROUND(SUM(val_pnp_trns) / 1e6, 1) AS total_pnp_m
+    FROM $FRG WHERE val_tot_trns > 0
+    GROUP BY Retail_Model ORDER BY total_pnp_m DESC
 "
 
 
-hdr "C2. Wallet-share buckets, the headroom slide"
+hdr "C2. Wallet-share headroom buckets"
 bq_prod "
     WITH bucketed AS (
         SELECT CASE
@@ -150,12 +139,10 @@ bq_prod "
             WHEN SAFE_DIVIDE(val_pnp_trns, val_tot_trns) < 0.20 THEN '3. 10-20%'
             WHEN SAFE_DIVIDE(val_pnp_trns, val_tot_trns) < 0.40 THEN '4. 20-40%'
             ELSE                                                     '5. 40%+'
-        END AS bucket,
-        val_pnp_trns, val_tot_trns
+        END AS bucket, val_pnp_trns, val_tot_trns
         FROM $FRG WHERE val_tot_trns > 0
     )
-    SELECT bucket,
-           COUNT(*) AS customers,
+    SELECT bucket, COUNT(*) AS customers,
            ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct,
            ROUND(SUM(val_pnp_trns) / 1e6, 1) AS pnp_spend_m,
            ROUND(SUM(val_tot_trns) / 1e6, 1) AS total_spend_m
@@ -163,169 +150,190 @@ bq_prod "
 "
 
 
-hdr "C3. Grocery-delivery adoption (ASAP relevance) by Retail_Model"
+hdr "C3. Grocery-delivery adoption (ASAP wealth gradient)"
 bq_prod "
-    SELECT Retail_Model,
-           COUNT(*) AS customers,
+    SELECT Retail_Model, COUNT(*) AS customers,
            COUNTIF(grocery_delivery_trns > 0) AS delivery_users,
            ROUND(100.0 * COUNTIF(grocery_delivery_trns > 0) / COUNT(*), 1) AS adoption_pct
-    FROM $FRG
-    GROUP BY Retail_Model
-    ORDER BY adoption_pct DESC
+    FROM $FRG GROUP BY Retail_Model ORDER BY adoption_pct DESC
 "
 
 
 # ═════════════════════════════════════════════════════════════════════
-# PART D: HUNT FOR MISSING EBUCKS x SMARTSHOPPER DATA
+# PART D: EBUCKS TABLES (NEW — 3 prod tables we haven't queried)
 # ═════════════════════════════════════════════════════════════════════
 
-hdr "D1. Every GCS bucket you can see"
-gcloud storage buckets list --format='value(name,location)' 2>/dev/null | head -30
-
-
-hdr "D2. GCS objects mentioning ebucks/smart/payday/burger across all buckets"
-for b in $(gcloud storage buckets list --format='value(name)' 2>/dev/null); do
-    hits=$(gcloud storage ls --recursive "gs://${b}/**" 2>/dev/null \
-        | grep -iE 'ebucks|smartshopper|smart_shopper|payday_ebucks|burger' \
-        | head -3)
-    if [ -n "$hits" ]; then
-        echo
-        echo "  gs://$b:"
-        echo "$hits" | sed 's/^/    /'
-    fi
-done
-
-
-hdr "D3. Prod PicknPay tables/columns mentioning ebucks/smart/reward/loyalty"
+hdr "D1. eBucks table schemas in prod PicknPay"
 bq_prod "
-    SELECT DISTINCT table_name
+    SELECT table_name, column_name, data_type
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.COLUMNS\`
     WHERE LOWER(table_name) LIKE '%ebucks%'
-       OR LOWER(table_name) LIKE '%smart%'
-       OR LOWER(table_name) LIKE '%reward%'
-       OR LOWER(column_name) LIKE '%ebucks%'
-       OR LOWER(column_name) LIKE '%smart%'
-       OR LOWER(column_name) LIKE '%reward%'
-       OR LOWER(column_name) LIKE '%loyalty%'
-    ORDER BY table_name
+       OR LOWER(table_name) LIKE '%burger%'
+       OR LOWER(table_name) LIKE '%payday%'
+    ORDER BY table_name, ordinal_position
 "
 
 
+hdr "D2. Row counts for eBucks tables"
+bq_prod "
+    SELECT t.table_name,
+           (SELECT SUM(total_rows) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\` p
+            WHERE p.table_name = t.table_name) AS n_rows
+    FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
+    WHERE LOWER(t.table_name) LIKE '%ebucks%'
+       OR LOWER(t.table_name) LIKE '%burger%'
+       OR LOWER(t.table_name) LIKE '%payday%'
+    ORDER BY n_rows DESC NULLS LAST
+"
+
+
+hdr "D3. eBucks BurgerFriday sample rows"
+bq_prod "SELECT * FROM \`$PROD.PicknPay.PNP_eBucks_BurgerFriday\` LIMIT 3"
+
+hdr "D4. eBucks payday sample rows (case A)"
+bq_prod "SELECT * FROM \`$PROD.PicknPay.PNP_payday_ebucks_202512\` LIMIT 3"
+
+
 # ═════════════════════════════════════════════════════════════════════
-# PART E: JOIN-KEY DISCOVERY (FRG x LR audiences)
+# PART E: JOIN KEY DIAGNOSTICS (why did overlap fail?)
 # ═════════════════════════════════════════════════════════════════════
 
-hdr "E1. Confirm FRG EMAIL_ADDR is SHA-256"
+hdr "E1. FRG EMAIL_ADDR format sanity"
 bq_prod "
     SELECT LENGTH(EMAIL_ADDR) AS len,
-           REGEXP_CONTAINS(EMAIL_ADDR, r'^[0-9a-f]{64}\$') AS is_sha256,
+           REGEXP_CONTAINS(EMAIL_ADDR, r'^[0-9a-f]{64}\$') AS is_lower_sha256,
+           REGEXP_CONTAINS(EMAIL_ADDR, r'^[0-9A-Fa-f]{64}\$') AS is_any_hex_sha256,
            COUNT(*) AS n
     FROM $FRG WHERE EMAIL_ADDR IS NOT NULL
-    GROUP BY len, is_sha256
+    GROUP BY len, is_lower_sha256, is_any_hex_sha256
     ORDER BY n DESC LIMIT 5
 "
 
 
-hdr "E2. lr_out_pnp_audiences_for_awareness (2.28M) x FRG (2.29M) overlap"
+hdr "E2. LR pnp_audiences_for_awareness format sanity"
+bq_sb "
+    SELECT LENGTH(string_field_0) AS len,
+           REGEXP_CONTAINS(string_field_0, r'^[0-9a-f]{64}\$') AS is_lower_sha256,
+           REGEXP_CONTAINS(string_field_0, r'^[0-9A-Fa-f]{64}\$') AS is_any_hex_sha256,
+           COUNT(*) AS n
+    FROM \`$SB.pnp_liveramp.lr_out_pnp_audiences_for_awareness\`
+    WHERE string_field_0 IS NOT NULL
+    GROUP BY len, is_lower_sha256, is_any_hex_sha256
+    ORDER BY n DESC LIMIT 5
+"
+
+
+hdr "E3. LR ntb_transact EMAIL format sanity"
+bq_sb "
+    SELECT LENGTH(EMAIL) AS len,
+           REGEXP_CONTAINS(EMAIL, r'^[0-9a-f]{64}\$') AS is_lower_sha256,
+           REGEXP_CONTAINS(EMAIL, r'^[0-9A-Fa-f]{64}\$') AS is_any_hex_sha256,
+           COUNT(*) AS n
+    FROM \`$SB.pnp_liveramp.lr_out_ntb_transact\`
+    WHERE EMAIL IS NOT NULL
+    GROUP BY len, is_lower_sha256, is_any_hex_sha256
+    ORDER BY n DESC LIMIT 5
+"
+
+
+hdr "E4. LR clothing_base email_addr format sanity (this one JOINED 95%)"
+bq_sb "
+    SELECT LENGTH(email_addr) AS len,
+           REGEXP_CONTAINS(email_addr, r'^[0-9a-f]{64}\$') AS is_lower_sha256,
+           COUNT(*) AS n
+    FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\`
+    WHERE email_addr IS NOT NULL
+    GROUP BY len, is_lower_sha256 ORDER BY n DESC LIMIT 5
+"
+
+
+hdr "E5. Sample 3 emails from each LR table, side-by-side"
+echo "FRG (Audience_Upload):"
+bq_prod "SELECT SUBSTR(EMAIL_ADDR, 1, 20) AS email_prefix FROM $FRG WHERE EMAIL_ADDR IS NOT NULL LIMIT 3"
+echo "LR pnp_audiences_for_awareness:"
+bq_sb "SELECT SUBSTR(string_field_0, 1, 20) AS email_prefix FROM \`$SB.pnp_liveramp.lr_out_pnp_audiences_for_awareness\` WHERE string_field_0 IS NOT NULL LIMIT 3"
+echo "LR ntb_transact:"
+bq_sb "SELECT SUBSTR(EMAIL, 1, 20) AS email_prefix FROM \`$SB.pnp_liveramp.lr_out_ntb_transact\` WHERE EMAIL IS NOT NULL LIMIT 3"
+echo "LR clothing_base (the one that joined 95%):"
+bq_sb "SELECT SUBSTR(email_addr, 1, 20) AS email_prefix FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\` WHERE email_addr IS NOT NULL LIMIT 3"
+
+
+hdr "E6. Retry pnp_audiences_for_awareness overlap using LOWER() on both sides"
 bq_prod "
     WITH lr AS (
-        SELECT DISTINCT string_field_0 AS email
+        SELECT DISTINCT LOWER(string_field_0) AS email
         FROM \`$SB.pnp_liveramp.lr_out_pnp_audiences_for_awareness\`
     )
-    SELECT (SELECT COUNT(DISTINCT EMAIL_ADDR) FROM $FRG) AS frg,
-           (SELECT COUNT(*) FROM lr) AS lr_audience,
-           (SELECT COUNT(DISTINCT f.EMAIL_ADDR) FROM $FRG f
-            JOIN lr l ON f.EMAIL_ADDR = l.email) AS overlap
-"
-
-
-hdr "E3. lr_out_pnp_clothing_base (857k) x FRG with SmartShopper flag"
-bq_prod "
-    WITH lr AS (
-        SELECT DISTINCT email_addr, SmartShopper_Indicator
-        FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\`
-    )
-    SELECT COUNT(*) AS clothing_total,
-           COUNTIF(SmartShopper_Indicator = 'Y') AS with_ss,
-           COUNTIF(SmartShopper_Indicator = 'N') AS without_ss,
-           (SELECT COUNT(DISTINCT f.EMAIL_ADDR) FROM $FRG f
-            JOIN lr l ON f.EMAIL_ADDR = l.email_addr) AS overlap_with_frg
-    FROM lr
-"
-
-
-hdr "E4. lr_out_ntb_transact (788k, baby NTB) x FRG"
-bq_prod "
-    WITH lr AS (
-        SELECT DISTINCT EMAIL AS email FROM \`$SB.pnp_liveramp.lr_out_ntb_transact\`
-    )
-    SELECT (SELECT COUNT(*) FROM lr) AS ntb_total,
-           (SELECT COUNT(DISTINCT f.EMAIL_ADDR) FROM $FRG f
-            JOIN lr l ON f.EMAIL_ADDR = l.email) AS overlap_with_frg
-"
-
-
-# ═════════════════════════════════════════════════════════════════════
-# PART F: THE KILLER STATS (segment mix INSIDE LR audiences)
-# ═════════════════════════════════════════════════════════════════════
-
-hdr "F1. FRG Retail_Model mix INSIDE lr_out_pnp_audiences_for_awareness"
-echo "For the audience PnP asked us to target, WHO are they across FNB tiers?"
-bq_prod "
-    WITH lr AS (
-        SELECT DISTINCT string_field_0 AS email
-        FROM \`$SB.pnp_liveramp.lr_out_pnp_audiences_for_awareness\`
-    )
-    SELECT f.Retail_Model,
-           COUNT(*) AS matched_customers,
-           ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct,
-           ROUND(AVG(f.val_pnp_trns), 0) AS avg_pnp_spend,
-           ROUND(AVG(SAFE_DIVIDE(f.val_pnp_trns, f.val_tot_trns)) * 100, 1) AS wallet_pct
+    SELECT COUNT(DISTINCT f.EMAIL_ADDR) AS overlap_lower
     FROM $FRG f
-    JOIN lr l ON f.EMAIL_ADDR = l.email
-    WHERE f.val_tot_trns > 0
-    GROUP BY f.Retail_Model
-    ORDER BY matched_customers DESC
+    JOIN lr l ON LOWER(f.EMAIL_ADDR) = l.email
 "
 
 
-hdr "F2. FRG mix INSIDE lr_out_pnp_clothing_base, split by SmartShopper Y/N"
+# ═════════════════════════════════════════════════════════════════════
+# PART F: THE KILLER STATS (using clothing_base, the join that worked)
+# ═════════════════════════════════════════════════════════════════════
+
+hdr "F1. FRG Retail_Model mix INSIDE clothing_base (696k customers matched)"
+echo "This is deck-worthy: who are the FRG customers who shop PnP Clothing?"
 bq_prod "
     WITH lr AS (
         SELECT DISTINCT email_addr, SmartShopper_Indicator
         FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\`
     )
     SELECT f.Retail_Model,
-           l.SmartShopper_Indicator,
-           COUNT(*) AS matched
+           COUNT(*) AS matched,
+           ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS pct_of_matches,
+           COUNTIF(l.SmartShopper_Indicator = 'Y') AS is_ss_member,
+           ROUND(100.0 * COUNTIF(l.SmartShopper_Indicator = 'Y') / COUNT(*), 1) AS ss_penetration_pct
     FROM $FRG f
     JOIN lr l ON f.EMAIL_ADDR = l.email_addr
-    GROUP BY f.Retail_Model, l.SmartShopper_Indicator
-    ORDER BY matched DESC LIMIT 20
+    GROUP BY f.Retail_Model
+    ORDER BY matched DESC
 "
 
 
-hdr "F3. Baby NTB propensity by FRG Retail_Model (the untapped baby-category story)"
+hdr "F2. Clothing shoppers: PnP-spend behaviour by Smart Shopper Y/N"
+echo "Do Smart Shopper members spend more at PnP than non-members?"
 bq_prod "
     WITH lr AS (
-        SELECT EMAIL AS email, avg_monthly_baby_spend, avg_frequency_3m
-        FROM \`$SB.pnp_liveramp.lr_out_ntb_transact\`
+        SELECT DISTINCT email_addr, SmartShopper_Indicator
+        FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\`
     )
-    SELECT f.Retail_Model,
+    SELECT l.SmartShopper_Indicator,
            COUNT(*) AS customers,
-           ROUND(AVG(l.avg_monthly_baby_spend), 0) AS avg_baby_spend,
-           ROUND(AVG(l.avg_frequency_3m), 1) AS avg_freq_3m
+           ROUND(AVG(f.val_pnp_trns), 0) AS avg_pnp_spend,
+           ROUND(AVG(f.val_tot_trns), 0) AS avg_total_spend,
+           ROUND(AVG(SAFE_DIVIDE(f.val_pnp_trns, f.val_tot_trns)) * 100, 1) AS wallet_pct
     FROM $FRG f
-    JOIN lr l ON f.EMAIL_ADDR = l.email
-    GROUP BY f.Retail_Model
-    ORDER BY avg_baby_spend DESC
+    JOIN lr l ON f.EMAIL_ADDR = l.email_addr
+    WHERE f.val_tot_trns > 0
+    GROUP BY l.SmartShopper_Indicator
+"
+
+
+hdr "F3. Clothing shoppers by MBD_Tier x SmartShopper (activation matrix)"
+bq_prod "
+    WITH lr AS (
+        SELECT DISTINCT email_addr, SmartShopper_Indicator
+        FROM \`$SB.pnp_liveramp.lr_out_pnp_clothing_base\`
+    )
+    SELECT f.MBD_Tier, l.SmartShopper_Indicator,
+           COUNT(*) AS matched,
+           ROUND(AVG(f.val_pnp_trns), 0) AS avg_pnp_spend
+    FROM $FRG f
+    JOIN lr l ON f.EMAIL_ADDR = l.email_addr
+    WHERE f.MBD_Tier IS NOT NULL
+    GROUP BY f.MBD_Tier, l.SmartShopper_Indicator
+    ORDER BY f.MBD_Tier, l.SmartShopper_Indicator
 "
 
 
 echo
 echo "════════════════════════════════════════════════════════════"
-echo "  Done. Everything in one screenshot-per-section."
-echo "  Screenshot each Part (A-F) and I'll build the two decks:"
-echo "    - Requested (Marina): slides 9 + 12"
-echo "    - Super deck: every unlock we can defend"
+echo "  Done. Priority screenshots for me:"
+echo "    Part D (eBucks table schemas) — new data source"
+echo "    Part E5 (email prefixes side-by-side) — reveals hash mismatch"
+echo "    Part E6 (LOWER() retry) — did the fix work?"
+echo "    Part F (clothing_base joins) — deck-worthy stats"
 echo "════════════════════════════════════════════════════════════"
