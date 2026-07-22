@@ -17,6 +17,14 @@
 
 set -uo pipefail
 
+# Mirror everything to a log file so nothing scrolls off screen.
+LOG="$HOME/pnp_discovery.log"
+exec > >(tee "$LOG") 2>&1
+
+echo "Full output is being written to $LOG"
+echo "After the run, page through it with: less -R $LOG"
+echo
+
 if ! gcloud auth print-access-token >/dev/null 2>&1; then
     gcloud auth login
 fi
@@ -62,23 +70,29 @@ done
 
 hdr "A2. Prod PicknPay tables + row counts"
 bq_prod "
-    SELECT t.table_name,
-           (SELECT SUM(total_rows) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\` p
-            WHERE p.table_name = t.table_name) AS n_rows
+    SELECT t.table_name, p.n_rows
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
-    WHERE table_type = 'BASE TABLE'
-    ORDER BY n_rows DESC NULLS LAST
+    LEFT JOIN (
+        SELECT table_name, SUM(total_rows) AS n_rows
+        FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\`
+        GROUP BY table_name
+    ) p USING (table_name)
+    WHERE t.table_type = 'BASE TABLE'
+    ORDER BY p.n_rows DESC NULLS LAST
 "
 
 
 hdr "A3. LR mirrors in sandbox (pnp_liveramp) + row counts"
 bq_sb "
-    SELECT t.table_name,
-           (SELECT SUM(total_rows) FROM \`$SB.pnp_liveramp.INFORMATION_SCHEMA.PARTITIONS\` p
-            WHERE p.table_name = t.table_name) AS n_rows
+    SELECT t.table_name, p.n_rows
     FROM \`$SB.pnp_liveramp.INFORMATION_SCHEMA.TABLES\` t
-    WHERE table_type = 'BASE TABLE'
-    ORDER BY n_rows DESC NULLS LAST
+    LEFT JOIN (
+        SELECT table_name, SUM(total_rows) AS n_rows
+        FROM \`$SB.pnp_liveramp.INFORMATION_SCHEMA.PARTITIONS\`
+        GROUP BY table_name
+    ) p USING (table_name)
+    WHERE t.table_type = 'BASE TABLE'
+    ORDER BY p.n_rows DESC NULLS LAST
 "
 
 
@@ -176,14 +190,17 @@ bq_prod "
 
 hdr "D2. Row counts for eBucks tables"
 bq_prod "
-    SELECT t.table_name,
-           (SELECT SUM(total_rows) FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\` p
-            WHERE p.table_name = t.table_name) AS n_rows
+    SELECT t.table_name, p.n_rows
     FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.TABLES\` t
+    LEFT JOIN (
+        SELECT table_name, SUM(total_rows) AS n_rows
+        FROM \`$PROD.PicknPay.INFORMATION_SCHEMA.PARTITIONS\`
+        GROUP BY table_name
+    ) p USING (table_name)
     WHERE LOWER(t.table_name) LIKE '%ebucks%'
        OR LOWER(t.table_name) LIKE '%burger%'
        OR LOWER(t.table_name) LIKE '%payday%'
-    ORDER BY n_rows DESC NULLS LAST
+    ORDER BY p.n_rows DESC NULLS LAST
 "
 
 
